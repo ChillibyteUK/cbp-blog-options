@@ -255,7 +255,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public function apply_blog_restrictions() {
 			$options = get_option( $this->option_name );
 
-			// Always remove unwanted dashboard widgets
+			// Always remove unwanted dashboard widgets.
 			add_action( 'wp_dashboard_setup', array( $this, 'remove_unwanted_dashboard_widgets' ) );
 
 			// Check if blog is disabled.
@@ -281,24 +281,24 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 * Remove unwanted dashboard widgets
 		 */
 		public function remove_unwanted_dashboard_widgets() {
-			// Remove "At a Glance" widget
+			// Remove "At a Glance" widget.
 			remove_meta_box( 'dashboard_right_now', 'dashboard', 'normal' );
-			
-			// Remove "WordPress Events and News" widget
+
+			// Remove "WordPress Events and News" widget.
 			remove_meta_box( 'dashboard_primary', 'dashboard', 'side' );
-			
-			// Remove "Quick Draft" widget
+
+			// Remove "Quick Draft" widget.
 			remove_meta_box( 'dashboard_quick_press', 'dashboard', 'side' );
-			
-			// Remove "Activity" widget
+
+			// Remove "Activity" widget.
 			remove_meta_box( 'dashboard_activity', 'dashboard', 'normal' );
-			
-			// Remove Yoast SEO widgets
+
+			// Remove Yoast SEO widgets.
 			remove_meta_box( 'yoast_db_widget', 'dashboard', 'normal' );
 			remove_meta_box( 'wpseo-dashboard-overview', 'dashboard', 'normal' );
 			remove_meta_box( 'wpseo-wincher-dashboard-overview', 'dashboard', 'normal' );
-			
-			// Remove additional Yoast widgets that might exist
+
+			// Remove additional Yoast widgets that might exist.
 			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'normal' );
 			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'side' );
 			remove_meta_box( 'wpseo_dashboard_widget', 'dashboard', 'normal' );
@@ -541,6 +541,22 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 
 			// Remove tags submenu from Posts menu.
 			add_action( 'admin_menu', array( $this, 'remove_tags_menu' ) );
+
+			// Remove tags metabox from post editor - multiple hooks.
+			add_action( 'add_meta_boxes', array( $this, 'remove_tags_metabox' ), 999 );
+			add_action( 'admin_init', array( $this, 'remove_tags_metabox' ) );
+			add_action( 'admin_head', array( $this, 'remove_tags_metabox' ) );
+			add_action( 'load-post.php', array( $this, 'remove_tags_metabox' ) );
+			add_action( 'load-post-new.php', array( $this, 'remove_tags_metabox' ) );
+
+			// Also try to remove post tag support entirely.
+			add_action( 'init', array( $this, 'remove_post_tag_support' ), 999 );
+
+			// Hide with CSS as last resort.
+			add_action( 'admin_head', array( $this, 'hide_tags_with_css' ) );
+
+			// Completely unregister the taxonomy.
+			add_action( 'init', array( $this, 'completely_remove_tags' ), 999 );
 		}
 
 		/**
@@ -551,10 +567,63 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		}
 
 		/**
+		 * Completely remove tags taxonomy
+		 */
+		public function completely_remove_tags() {
+			global $wp_taxonomies;
+			if ( isset( $wp_taxonomies['post_tag'] ) ) {
+				unset( $wp_taxonomies['post_tag'] );
+			}
+			unregister_taxonomy( 'post_tag' );
+		}
+
+		/**
+		 * Remove post tag support entirely
+		 */
+		public function remove_post_tag_support() {
+			remove_post_type_support( 'post', 'post-tags' );
+		}
+
+		/**
 		 * Remove tags submenu from Posts menu
 		 */
 		public function remove_tags_menu() {
 			remove_submenu_page( 'edit.php', 'edit-tags.php?taxonomy=post_tag' );
+		}
+
+		/**
+		 * Remove tags metabox from post editor
+		 */
+		public function remove_tags_metabox() {
+			remove_meta_box( 'tagsdiv-post_tag', 'post', 'side' );
+			remove_meta_box( 'tagsdiv-post_tag', 'post', 'normal' );
+			remove_meta_box( 'tagsdiv-post_tag', 'post', 'advanced' );
+			// Also try alternative names.
+			remove_meta_box( 'post_tag', 'post', 'side' );
+			remove_meta_box( 'post_tagdiv', 'post', 'side' );
+			remove_meta_box( 'post_tag', 'post', 'normal' );
+			remove_meta_box( 'post_tagdiv', 'post', 'normal' );
+		}
+
+		/**
+		 * Hide tags metabox with CSS as last resort
+		 */
+		public function hide_tags_with_css() {
+			global $pagenow;
+
+			if ( in_array( $pagenow, array( 'post.php', 'post-new.php' ) ) ) {
+				echo '<style>
+					#tagsdiv-post_tag,
+					#post_tag,
+					#post_tagdiv,
+					.tagsdiv,
+					.postbox#tagsdiv-post_tag,
+					div[id*="tag"],
+					.meta-box-sortables #tagsdiv-post_tag {
+						display: none !important;
+					}
+				</style>';
+			}
 		}
 	}
 } // End if class_exists check.
