@@ -255,6 +255,9 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public function apply_blog_restrictions() {
 			$options = get_option( $this->option_name );
 
+			// Always remove unwanted dashboard widgets
+			add_action( 'wp_dashboard_setup', array( $this, 'remove_unwanted_dashboard_widgets' ) );
+
 			// Check if blog is disabled.
 			if ( isset( $options['disable_blog'] ) && $options['disable_blog'] ) {
 				$this->disable_blog_functionality();
@@ -272,6 +275,33 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 					$this->disable_tags_functionality();
 				}
 			}
+		}
+
+		/**
+		 * Remove unwanted dashboard widgets
+		 */
+		public function remove_unwanted_dashboard_widgets() {
+			// Remove "At a Glance" widget
+			remove_meta_box( 'dashboard_right_now', 'dashboard', 'normal' );
+			
+			// Remove "WordPress Events and News" widget
+			remove_meta_box( 'dashboard_primary', 'dashboard', 'side' );
+			
+			// Remove "Quick Draft" widget
+			remove_meta_box( 'dashboard_quick_press', 'dashboard', 'side' );
+			
+			// Remove "Activity" widget
+			remove_meta_box( 'dashboard_activity', 'dashboard', 'normal' );
+			
+			// Remove Yoast SEO widgets
+			remove_meta_box( 'yoast_db_widget', 'dashboard', 'normal' );
+			remove_meta_box( 'wpseo-dashboard-overview', 'dashboard', 'normal' );
+			remove_meta_box( 'wpseo-wincher-dashboard-overview', 'dashboard', 'normal' );
+			
+			// Remove additional Yoast widgets that might exist
+			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'normal' );
+			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'side' );
+			remove_meta_box( 'wpseo_dashboard_widget', 'dashboard', 'normal' );
 		}
 
 		/**
