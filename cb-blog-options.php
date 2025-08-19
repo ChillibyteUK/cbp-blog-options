@@ -59,6 +59,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				'disable_comments'  => 1,
 				'disable_gravatars' => 1,
 				'disable_tags'      => 0,
+				'disable_emojis'    => 0,
 			);
 			add_option( 'cb_blog_options', $default_options );
 		}
@@ -153,6 +154,14 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				'cb_blog_options',
 				'cb_blog_options_section'
 			);
+
+			add_settings_field(
+				'disable_emojis',
+				'Disable Emojis',
+				array( $this, 'disable_emojis_render' ),
+				'cb_blog_options',
+				'cb_blog_options_section'
+			);
 		}
 
 		/**
@@ -207,6 +216,18 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			?>
 			<input type="checkbox" id="disable_tags" name="<?php echo esc_attr( $this->option_name ); ?>[disable_tags]" value="1" <?php checked( 1, $checked ); ?>>
 			<label for="disable_tags">Disable Tags</label>
+			<?php
+		}
+
+		/**
+		 * Render disable emojis checkbox
+		 */
+		public function disable_emojis_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['disable_emojis'] ) ? $options['disable_emojis'] : 0;
+			?>
+			<input type="checkbox" id="disable_emojis" name="<?php echo esc_attr( $this->option_name ); ?>[disable_emojis]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="disable_emojis">Disable WordPress Emojis (removes emoji scripts/styles from frontend and admin)</label>
 			<?php
 		}
 
@@ -275,6 +296,28 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 					$this->disable_tags_functionality();
 				}
 			}
+
+			// Check if emojis should be disabled.
+			if ( isset( $options['disable_emojis'] ) && $options['disable_emojis'] ) {
+				$this->disable_emojis_functionality();
+			}
+		}
+		/**
+		 * Disable WordPress emoji scripts/styles
+		 */
+		private function disable_emojis_functionality() {
+			add_action(
+				'init',
+				function () {
+					remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+					remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+					remove_action( 'wp_print_styles', 'print_emoji_styles' );
+					remove_action( 'admin_print_styles', 'print_emoji_styles' );
+					remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
+					remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
+					remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
+				}
+			);
 		}
 
 		/**
