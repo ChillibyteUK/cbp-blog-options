@@ -695,4 +695,35 @@ if ( ! function_exists( 'cb_blog_options_activation_check' ) ) {
 if ( ! function_exists( 'cb_blog_options_deactivation_check' ) ) {
     register_deactivation_hook( __FILE__, array( 'CBBlogOptions', 'deactivate' ) );
 }
+
+/**
+ * Globally disable WordPress emojis as early as possible if option is set.
+ */
+add_action(
+	'plugins_loaded',
+	function () {
+		$options = get_option( 'cb_blog_options' );
+		if ( isset( $options['disable_emojis'] ) && $options['disable_emojis'] ) {
+			// Remove all emoji actions and filters.
+			remove_action( 'admin_print_styles', 'print_emoji_styles' );
+			remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+			remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+			remove_action( 'wp_print_styles', 'print_emoji_styles' );
+			remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
+			remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
+			remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
+			add_filter( 'emoji_svg_url', '__return_false' );
+			add_filter(
+				'tiny_mce_plugins',
+				function ( $plugins ) {
+					if ( is_array( $plugins ) ) {
+						return array_diff( $plugins, array( 'wpemoji' ) );
+					}
+					return $plugins;
+				}
+			);
+		}
+	},
+	1
+);
 ?>
