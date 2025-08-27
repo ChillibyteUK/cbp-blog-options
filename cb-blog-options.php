@@ -398,6 +398,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 */
 		public function disable_post_type() {
 			global $wp_post_types;
+			// Only disable UI for the default 'post' type, not for custom post types like ACF field groups.
 			if ( isset( $wp_post_types['post'] ) ) {
 				$wp_post_types['post']->public            = false;
 				$wp_post_types['post']->show_ui           = false;
