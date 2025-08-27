@@ -414,20 +414,22 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public function redirect_post_pages() {
 			global $pagenow;
 			$post_pages = array( 'edit.php', 'post-new.php', 'post.php' );
-			// Only redirect if working with posts, not pages or other post types, and not if doing actions like trash/delete.
-			if ( in_array( $pagenow, $post_pages, true ) && ( ! isset( $_GET['post_type'] ) || 'post' === $_GET['post_type'] ) ) {
-				// Allow actions like trash, delete, or bulk actions to proceed.
+			if ( in_array( $pagenow, $post_pages, true ) ) {
+				$current_post_type = null;
+				// Try to get post type from $_GET['post_type']
+				if ( isset( $_GET['post_type'] ) ) {
+					$current_post_type = sanitize_text_field( $_GET['post_type'] );
+				} elseif ( isset( $_GET['post'] ) ) {
+					$post_id = intval( $_GET['post'] );
+					$current_post_type = get_post_type( $post_id );
+				}
+				// Only redirect if the post type is exactly 'post' and not doing allowed actions
 				$allowed_actions = array( 'trash', 'delete', 'bulk-delete', 'bulk-trash' );
-				if ( isset( $_GET['action'] ) && in_array( $_GET['action'], $allowed_actions, true ) ) {
+				if ( $current_post_type !== 'post' ) {
 					return;
 				}
-				// Only redirect if not editing a page or custom post type.
-				if ( isset( $_GET['post'] ) ) {
-					$post_id = intval( $_GET['post'] );
-					$post_type = get_post_type( $post_id );
-					if ( $post_type && $post_type !== 'post' ) {
-						return;
-					}
+				if ( isset( $_GET['action'] ) && in_array( $_GET['action'], $allowed_actions, true ) ) {
+					return;
 				}
 				wp_safe_redirect( admin_url() );
 				exit;
