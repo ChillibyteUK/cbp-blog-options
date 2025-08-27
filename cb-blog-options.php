@@ -412,10 +412,22 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 */
 		public function redirect_post_pages() {
 			global $pagenow;
-
 			$post_pages = array( 'edit.php', 'post-new.php', 'post.php' );
-
+			// Only redirect if working with posts, not pages or other post types, and not if doing actions like trash/delete.
 			if ( in_array( $pagenow, $post_pages, true ) && ( ! isset( $_GET['post_type'] ) || 'post' === $_GET['post_type'] ) ) {
+				// Allow actions like trash, delete, or bulk actions to proceed.
+				$allowed_actions = array( 'trash', 'delete', 'bulk-delete', 'bulk-trash' );
+				if ( isset( $_GET['action'] ) && in_array( $_GET['action'], $allowed_actions, true ) ) {
+					return;
+				}
+				// Only redirect if not editing a page or custom post type.
+				if ( isset( $_GET['post'] ) ) {
+					$post_id = intval( $_GET['post'] );
+					$post_type = get_post_type( $post_id );
+					if ( $post_type && $post_type !== 'post' ) {
+						return;
+					}
+				}
 				wp_safe_redirect( admin_url() );
 				exit;
 			}
