@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -741,4 +741,15 @@ add_action(
 	},
 	1
 );
+
+// Add a 'Blog Options' link to the plugin's action links on the Installed Plugins page.
+add_filter(
+	'plugin_action_links_cb-theme-options/cb-theme-options.php',
+	function ( $links ) {
+		$settings_link = '<a href="' . admin_url( 'tools.php?page=cb-blog-options' ) . '">Blog Options</a>';
+		array_unshift( $links, $settings_link );
+		return $links;
+	}
+);
+
 ?>
