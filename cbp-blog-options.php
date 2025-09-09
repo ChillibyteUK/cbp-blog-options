@@ -105,7 +105,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				'CB Blog Options',
 				'CB Blog Options',
 				'manage_options',
-				'cb-blog-options',
+				'cbp-blog-options',
 				array( $this, 'options_page' )
 			);
 		}
@@ -746,7 +746,7 @@ add_action(
 add_filter(
 	'plugin_action_links_cbp-blog-options/cbp-blog-options.php',
 	function ( $links ) {
-		$settings_link = '<a href="' . admin_url( 'tools.php?page=cb-blog-options' ) . '">Blog Options</a>';
+		$settings_link = '<a href="' . admin_url( 'tools.php?page=cbp-blog-options' ) . '">Blog Options</a>';
 		array_unshift( $links, $settings_link );
 		return $links;
 	}
