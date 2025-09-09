@@ -744,7 +744,7 @@ add_action(
 
 // Add a 'Blog Options' link to the plugin's action links on the Installed Plugins page.
 add_filter(
-	'plugin_action_links_cb-blog-options/cb-blog-options.php',
+	'plugin_action_links_cbp-blog-options/cbp-blog-options.php',
 	function ( $links ) {
 		$settings_link = '<a href="' . admin_url( 'tools.php?page=cb-blog-options' ) . '">Blog Options</a>';
 		array_unshift( $links, $settings_link );
