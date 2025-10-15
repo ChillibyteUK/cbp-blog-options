@@ -623,8 +623,9 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			// Hide with CSS as last resort.
 			add_action( 'admin_head', array( $this, 'hide_tags_with_css' ) );
 
-			// Completely unregister the taxonomy.
-			add_action( 'init', array( $this, 'completely_remove_tags' ), 999 );
+			// DON'T completely unregister the taxonomy - this breaks core functionality
+			// Instead just hide it from the UI
+			add_action( 'init', array( $this, 'hide_tags_taxonomy' ), 999 );
 		}
 
 		/**
@@ -635,14 +636,21 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		}
 
 		/**
-		 * Completely remove tags taxonomy
+		 * Hide tags taxonomy from UI without breaking core functionality
 		 */
-		public function completely_remove_tags() {
+		public function hide_tags_taxonomy() {
 			global $wp_taxonomies;
 			if ( isset( $wp_taxonomies['post_tag'] ) ) {
-				unset( $wp_taxonomies['post_tag'] );
+				// Hide from UI but keep taxonomy registered for core functionality.
+				$wp_taxonomies['post_tag']->public              = false;
+				$wp_taxonomies['post_tag']->show_ui             = false;
+				$wp_taxonomies['post_tag']->show_in_menu        = false;
+				$wp_taxonomies['post_tag']->show_in_admin_bar   = false;
+				$wp_taxonomies['post_tag']->show_in_nav_menus   = false;
+				$wp_taxonomies['post_tag']->show_tagcloud       = false;
+				$wp_taxonomies['post_tag']->show_in_quick_edit  = false;
+				$wp_taxonomies['post_tag']->show_admin_column   = false;
 			}
-			unregister_taxonomy( 'post_tag' );
 		}
 
 		/**
