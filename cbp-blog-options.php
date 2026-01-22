@@ -475,6 +475,21 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 
 			// Hide discussion menu from Settings.
 			add_action( 'admin_menu', array( $this, 'remove_discussion_menu' ) );
+
+			// Remove comments column from post list table.
+			add_filter( 'manage_posts_columns', array( $this, 'remove_comments_column' ) );
+			add_filter( 'manage_pages_columns', array( $this, 'remove_comments_column' ) );
+		}
+
+		/**
+		 * Remove comments column from post/page list tables
+		 *
+		 * @param array $columns List of columns.
+		 * @return array Modified list of columns.
+		 */
+		public function remove_comments_column( $columns ) {
+			unset( $columns['comments'] );
+			return $columns;
 		}
 
 		/**
