@@ -419,8 +419,8 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 					$current_post_type = get_post_type( $post_id );
 				}
 
-				// Never interfere with attachments or when post type is not 'post'.
-				if ( null !== $current_post_type && 'post' !== $current_post_type ) {
+				// If we can't determine post type or it's not 'post', don't interfere.
+				if ( null === $current_post_type || 'post' !== $current_post_type ) {
 					return;
 				}
 
