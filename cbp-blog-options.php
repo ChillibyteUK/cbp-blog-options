@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.0.3
+ * Version: 1.1.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-    define( 'CB_BLOG_OPTIONS_VERSION', '1.0.3' );
+    define( 'CB_BLOG_OPTIONS_VERSION', '1.1.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -411,11 +411,11 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			$post_pages = array( 'edit.php', 'post-new.php', 'post.php' );
 			if ( in_array( $pagenow, $post_pages, true ) ) {
 				$current_post_type = null;
-				// Try to get post type from $_GET['post_type'].
-				if ( isset( $_GET['post_type'] ) ) {
-					$current_post_type = sanitize_text_field( $_GET['post_type'] );
-				} elseif ( isset( $_GET['post'] ) ) {
-					$post_id           = intval( $_GET['post'] );
+				// Try to get post type from $_REQUEST (covers both GET and POST).
+				if ( isset( $_REQUEST['post_type'] ) ) {
+					$current_post_type = sanitize_text_field( wp_unslash( $_REQUEST['post_type'] ) );
+				} elseif ( isset( $_REQUEST['post'] ) ) {
+					$post_id           = intval( $_REQUEST['post'] );
 					$current_post_type = get_post_type( $post_id );
 				}
 
@@ -426,7 +426,8 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 
 				// Only redirect if the post type is exactly 'post' and not doing allowed actions.
 				$allowed_actions = array( 'trash', 'delete', 'bulk-delete', 'bulk-trash' );
-				if ( isset( $_GET['action'] ) && in_array( $_GET['action'], $allowed_actions, true ) ) {
+				$action          = isset( $_REQUEST['action'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['action'] ) ) : '';
+				if ( $action && in_array( $action, $allowed_actions, true ) ) {
 					return;
 				}
 				wp_safe_redirect( admin_url() );
