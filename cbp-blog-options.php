@@ -1,9 +1,9 @@
-<?php
+<?php // phpcs:disable WordPress.Files.FileName.InvalidClassFileName
 /**
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -346,12 +346,16 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			// Remove "Activity" widget.
 			remove_meta_box( 'dashboard_activity', 'dashboard', 'normal' );
 
+			// Remove "Recent Comments" widget.
+			remove_meta_box( 'dashboard_recent_comments', 'dashboard', 'normal' );
+
+			// Remove "Recent Drafts" widget.
+			remove_meta_box( 'dashboard_recent_drafts', 'dashboard', 'side' );
+
 			// Remove Yoast SEO widgets.
 			remove_meta_box( 'yoast_db_widget', 'dashboard', 'normal' );
 			remove_meta_box( 'wpseo-dashboard-overview', 'dashboard', 'normal' );
 			remove_meta_box( 'wpseo-wincher-dashboard-overview', 'dashboard', 'normal' );
-
-			// Remove additional Yoast widgets that might exist.
 			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'normal' );
 			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'side' );
 			remove_meta_box( 'wpseo_dashboard_widget', 'dashboard', 'normal' );
@@ -370,9 +374,6 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			// Redirect post-related pages.
 			add_action( 'admin_init', array( $this, 'redirect_post_pages' ) );
 
-			// Remove post-related dashboard widgets.
-			add_action( 'wp_dashboard_setup', array( $this, 'remove_post_dashboard_widgets' ) );
-
 			// Disable comments and gravatars as well.
 			$this->disable_comments_functionality();
 			$this->disable_gravatars_functionality();
@@ -380,9 +381,6 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 
 			// Remove blog-related admin bar items.
 			add_action( 'admin_bar_menu', array( $this, 'remove_blog_admin_bar_items' ), 999 );
-
-			// Hide blog-related quick draft widget.
-			add_action( 'wp_dashboard_setup', array( $this, 'remove_quick_draft_widget' ) );
 		}
 
 		/**
@@ -400,11 +398,8 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			global $wp_post_types;
 			// Only disable UI for the default 'post' type, not for custom post types like ACF field groups.
 			if ( isset( $wp_post_types['post'] ) ) {
-				$wp_post_types['post']->public            = false;
-				$wp_post_types['post']->show_ui           = false;
-				$wp_post_types['post']->show_in_menu      = false;
-				$wp_post_types['post']->show_in_admin_bar = false;
-				$wp_post_types['post']->show_in_nav_menus = false;
+				$wp_post_types['post']->public  = false;
+				$wp_post_types['post']->show_ui = false;
 			}
 		}
 
@@ -416,18 +411,21 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			$post_pages = array( 'edit.php', 'post-new.php', 'post.php' );
 			if ( in_array( $pagenow, $post_pages, true ) ) {
 				$current_post_type = null;
-				// Try to get post type from $_GET['post_type']
+				// Try to get post type from $_GET['post_type'].
 				if ( isset( $_GET['post_type'] ) ) {
 					$current_post_type = sanitize_text_field( $_GET['post_type'] );
 				} elseif ( isset( $_GET['post'] ) ) {
-					$post_id = intval( $_GET['post'] );
+					$post_id           = intval( $_GET['post'] );
 					$current_post_type = get_post_type( $post_id );
 				}
-				// Only redirect if the post type is exactly 'post' and not doing allowed actions
-				$allowed_actions = array( 'trash', 'delete', 'bulk-delete', 'bulk-trash' );
-				if ( $current_post_type !== 'post' ) {
+
+				// Never interfere with attachments or when post type is not 'post'.
+				if ( 'post' !== $current_post_type || null === $current_post_type ) {
 					return;
 				}
+
+				// Only redirect if the post type is exactly 'post' and not doing allowed actions.
+				$allowed_actions = array( 'trash', 'delete', 'bulk-delete', 'bulk-trash' );
 				if ( isset( $_GET['action'] ) && in_array( $_GET['action'], $allowed_actions, true ) ) {
 					return;
 				}
@@ -436,14 +434,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			}
 		}
 
-		/**
-		 * Remove post-related dashboard widgets
-		 */
-		public function remove_post_dashboard_widgets() {
-			remove_meta_box( 'dashboard_recent_drafts', 'dashboard', 'side' );
-			remove_meta_box( 'dashboard_quick_press', 'dashboard', 'side' );
-			remove_meta_box( 'dashboard_activity', 'dashboard', 'normal' );
-		}
+
 
 		/**
 		 * Remove blog-related admin bar items
@@ -454,12 +445,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			$wp_admin_bar->remove_node( 'new-post' );
 		}
 
-		/**
-		 * Remove quick draft widget
-		 */
-		public function remove_quick_draft_widget() {
-			remove_meta_box( 'dashboard_quick_press', 'dashboard', 'side' );
-		}
+
 
 		/**
 		 * Disable comments functionality
@@ -483,9 +469,6 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 
 			// Remove comments from admin bar.
 			add_action( 'admin_bar_menu', array( $this, 'remove_comments_admin_bar' ), 999 );
-
-			// Remove comment-related dashboard widgets.
-			add_action( 'wp_dashboard_setup', array( $this, 'remove_comment_dashboard_widgets' ) );
 
 			// Hide discussion settings.
 			add_action( 'admin_init', array( $this, 'hide_discussion_settings' ) );
@@ -542,12 +525,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			$wp_admin_bar->remove_node( 'comments' );
 		}
 
-		/**
-		 * Remove comment dashboard widgets
-		 */
-		public function remove_comment_dashboard_widgets() {
-			remove_meta_box( 'dashboard_recent_comments', 'dashboard', 'normal' );
-		}
+
 
 		/**
 		 * Hide discussion settings
@@ -604,60 +582,25 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 * Disable Tags functionality
 		 */
 		private function disable_tags_functionality() {
-			// Remove tags support from posts.
-			add_action( 'init', array( $this, 'unregister_tags' ) );
+			// Unregister tags taxonomy.
+			add_action( 'init', array( $this, 'unregister_tags' ), 999 );
 
 			// Remove tags submenu from Posts menu.
 			add_action( 'admin_menu', array( $this, 'remove_tags_menu' ) );
 
-			// Remove tags metabox from post editor - multiple hooks.
+			// Remove tags metabox from post editor.
 			add_action( 'add_meta_boxes', array( $this, 'remove_tags_metabox' ), 999 );
-			add_action( 'admin_init', array( $this, 'remove_tags_metabox' ) );
-			add_action( 'admin_head', array( $this, 'remove_tags_metabox' ) );
-			add_action( 'load-post.php', array( $this, 'remove_tags_metabox' ) );
-			add_action( 'load-post-new.php', array( $this, 'remove_tags_metabox' ) );
-
-			// Also try to remove post tag support entirely.
-			add_action( 'init', array( $this, 'remove_post_tag_support' ), 999 );
-
-			// Hide with CSS as last resort.
-			add_action( 'admin_head', array( $this, 'hide_tags_with_css' ) );
-
-			// DON'T completely unregister the taxonomy - this breaks core functionality
-			// Instead just hide it from the UI
-			add_action( 'init', array( $this, 'hide_tags_taxonomy' ), 999 );
 		}
 
 		/**
-		 * Unregister tags taxonomy for posts
+		 * Unregister tags taxonomy
 		 */
 		public function unregister_tags() {
 			unregister_taxonomy_for_object_type( 'post_tag', 'post' );
-		}
-
-		/**
-		 * Hide tags taxonomy from UI without breaking core functionality
-		 */
-		public function hide_tags_taxonomy() {
 			global $wp_taxonomies;
 			if ( isset( $wp_taxonomies['post_tag'] ) ) {
-				// Hide from UI but keep taxonomy registered for core functionality.
-				$wp_taxonomies['post_tag']->public              = false;
-				$wp_taxonomies['post_tag']->show_ui             = false;
-				$wp_taxonomies['post_tag']->show_in_menu        = false;
-				$wp_taxonomies['post_tag']->show_in_admin_bar   = false;
-				$wp_taxonomies['post_tag']->show_in_nav_menus   = false;
-				$wp_taxonomies['post_tag']->show_tagcloud       = false;
-				$wp_taxonomies['post_tag']->show_in_quick_edit  = false;
-				$wp_taxonomies['post_tag']->show_admin_column   = false;
+				unset( $wp_taxonomies['post_tag'] );
 			}
-		}
-
-		/**
-		 * Remove post tag support entirely
-		 */
-		public function remove_post_tag_support() {
-			remove_post_type_support( 'post', 'post-tags' );
 		}
 
 		/**
@@ -672,34 +615,6 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 */
 		public function remove_tags_metabox() {
 			remove_meta_box( 'tagsdiv-post_tag', 'post', 'side' );
-			remove_meta_box( 'tagsdiv-post_tag', 'post', 'normal' );
-			remove_meta_box( 'tagsdiv-post_tag', 'post', 'advanced' );
-			// Also try alternative names.
-			remove_meta_box( 'post_tag', 'post', 'side' );
-			remove_meta_box( 'post_tagdiv', 'post', 'side' );
-			remove_meta_box( 'post_tag', 'post', 'normal' );
-			remove_meta_box( 'post_tagdiv', 'post', 'normal' );
-		}
-
-		/**
-		 * Hide tags metabox with CSS as last resort
-		 */
-		public function hide_tags_with_css() {
-			global $pagenow;
-
-			if ( in_array( $pagenow, array( 'post.php', 'post-new.php' ) ) ) {
-				echo '<style>
-					#tagsdiv-post_tag,
-					#post_tag,
-					#post_tagdiv,
-					.tagsdiv,
-					.postbox#tagsdiv-post_tag,
-					div[id*="tag"],
-					.meta-box-sortables #tagsdiv-post_tag {
-						display: none !important;
-					}
-				</style>';
-			}
 		}
 	}
 } // End if class_exists check.
