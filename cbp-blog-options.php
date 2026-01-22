@@ -612,10 +612,18 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 * Unregister tags taxonomy
 		 */
 		public function unregister_tags() {
+			// Only unregister tags from 'post' type, don't delete the taxonomy entirely.
 			unregister_taxonomy_for_object_type( 'post_tag', 'post' );
+			
+			// Hide the taxonomy UI without breaking core functionality.
 			global $wp_taxonomies;
 			if ( isset( $wp_taxonomies['post_tag'] ) ) {
-				unset( $wp_taxonomies['post_tag'] );
+				$wp_taxonomies['post_tag']->show_ui            = false;
+				$wp_taxonomies['post_tag']->show_in_menu       = false;
+				$wp_taxonomies['post_tag']->show_in_nav_menus  = false;
+				$wp_taxonomies['post_tag']->show_tagcloud      = false;
+				$wp_taxonomies['post_tag']->show_in_quick_edit = false;
+				$wp_taxonomies['post_tag']->show_admin_column  = false;
 			}
 		}
 
