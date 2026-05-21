@@ -704,12 +704,14 @@ add_filter(
 // The 'mode' registration key only sets the default for new blocks; existing blocks
 // have their mode persisted in the serialised HTML comment. This JS subscriber
 // watches the block store and resets any ACF block that drifts to preview/auto.
+// New blocks can finish bootstrapping after insertion, so the mode flip is queued
+// into the next frame and retried until the block actually lands in edit mode.
 add_action(
 	'enqueue_block_editor_assets',
 	function () {
 		wp_add_inline_script(
 			'wp-blocks',
-			"( function () {\n\tvar processed = {};\n\twp.data.subscribe( function () {\n\t\tvar select   = wp.data.select( 'core/block-editor' );\n\t\tvar dispatch = wp.data.dispatch( 'core/block-editor' );\n\t\tif ( ! select || ! dispatch ) return;\n\t\tvar blocks = select.getBlocks();\n\t\t( function walk( list ) {\n\t\t\tlist.forEach( function ( block ) {\n\t\t\t\tif (\n\t\t\t\t\tblock.name &&\n\t\t\t\t\tblock.name.indexOf( 'acf/' ) === 0 &&\n\t\t\t\t\tblock.attributes &&\n\t\t\t\t\tblock.attributes.mode !== 'edit' &&\n\t\t\t\t\t! processed[ block.clientId ]\n\t\t\t\t) {\n\t\t\t\t\tprocessed[ block.clientId ] = true;\n\t\t\t\t\tdispatch.updateBlockAttributes( block.clientId, { mode: 'edit' } );\n\t\t\t\t}\n\t\t\t\tif ( block.innerBlocks && block.innerBlocks.length ) {\n\t\t\t\t\twalk( block.innerBlocks );\n\t\t\t\t}\n\t\t\t} );\n\t\t}( blocks ) );\n\t} );\n}() );"
+			"( function () {\n\tvar pending = {};\n\n\tfunction queueEditMode( clientId ) {\n\t\tif ( pending[ clientId ] ) {\n\t\t\treturn;\n\t\t}\n\n\t\tpending[ clientId ] = true;\n\n\t\twindow.requestAnimationFrame( function () {\n\t\t\tvar select = wp.data.select( 'core/block-editor' );\n\t\t\tvar dispatch = wp.data.dispatch( 'core/block-editor' );\n\t\t\tvar block = select && select.getBlock ? select.getBlock( clientId ) : null;\n\n\t\t\tpending[ clientId ] = false;\n\n\t\t\tif (\n\t\t\t\t! block ||\n\t\t\t\t! block.name ||\n\t\t\t\tblock.name.indexOf( 'acf/' ) !== 0 ||\n\t\t\t\t( block.attributes && block.attributes.mode === 'edit' )\n\t\t\t) {\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tif ( dispatch && dispatch.updateBlockAttributes ) {\n\t\t\t\tdispatch.updateBlockAttributes( clientId, { mode: 'edit' } );\n\t\t\t}\n\t\t} );\n\t}\n\n\twp.data.subscribe( function () {\n\t\tvar select = wp.data.select( 'core/block-editor' );\n\t\tif ( ! select || ! select.getBlocks ) {\n\t\t\treturn;\n\t\t}\n\n\t\t( function walk( list ) {\n\t\t\tlist.forEach( function ( block ) {\n\t\t\t\tif ( block.name && block.name.indexOf( 'acf/' ) === 0 ) {\n\t\t\t\t\tqueueEditMode( block.clientId );\n\t\t\t\t}\n\n\t\t\t\tif ( block.innerBlocks && block.innerBlocks.length ) {\n\t\t\t\t\twalk( block.innerBlocks );\n\t\t\t\t}\n\t\t\t} );\n\t\t}( select.getBlocks() ) );\n\t} );\n}() );"
 		);
 	}
 );
