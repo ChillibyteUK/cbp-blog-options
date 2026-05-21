@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -614,7 +614,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public function unregister_tags() {
 			// Only unregister tags from 'post' type, don't delete the taxonomy entirely.
 			unregister_taxonomy_for_object_type( 'post_tag', 'post' );
-			
+
 			// Hide the taxonomy UI without breaking core functionality.
 			global $wp_taxonomies;
 			if ( isset( $wp_taxonomies['post_tag'] ) ) {
@@ -696,6 +696,21 @@ add_filter(
 		$settings_link = '<a href="' . admin_url( 'tools.php?page=cbp-blog-options' ) . '">Blog Options</a>';
 		array_unshift( $links, $settings_link );
 		return $links;
+	}
+);
+
+
+// Force all ACF blocks to always display in edit mode in the block editor.
+// The 'mode' registration key only sets the default for new blocks; existing blocks
+// have their mode persisted in the serialised HTML comment. This JS subscriber
+// watches the block store and resets any ACF block that drifts to preview/auto.
+add_action(
+	'enqueue_block_editor_assets',
+	function () {
+		wp_add_inline_script(
+			'wp-blocks',
+			"( function () {\n\tvar processed = {};\n\twp.data.subscribe( function () {\n\t\tvar select   = wp.data.select( 'core/block-editor' );\n\t\tvar dispatch = wp.data.dispatch( 'core/block-editor' );\n\t\tif ( ! select || ! dispatch ) return;\n\t\tvar blocks = select.getBlocks();\n\t\t( function walk( list ) {\n\t\t\tlist.forEach( function ( block ) {\n\t\t\t\tif (\n\t\t\t\t\tblock.name &&\n\t\t\t\t\tblock.name.indexOf( 'acf/' ) === 0 &&\n\t\t\t\t\tblock.attributes &&\n\t\t\t\t\tblock.attributes.mode !== 'edit' &&\n\t\t\t\t\t! processed[ block.clientId ]\n\t\t\t\t) {\n\t\t\t\t\tprocessed[ block.clientId ] = true;\n\t\t\t\t\tdispatch.updateBlockAttributes( block.clientId, { mode: 'edit' } );\n\t\t\t\t}\n\t\t\t\tif ( block.innerBlocks && block.innerBlocks.length ) {\n\t\t\t\t\twalk( block.innerBlocks );\n\t\t\t\t}\n\t\t\t} );\n\t\t}( blocks ) );\n\t} );\n}() );"
+		);
 	}
 );
 
