@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.1.1' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.1.2' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -276,6 +276,9 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public function apply_blog_restrictions() {
 			$options = get_option( $this->option_name );
 
+			// Add the Chillibyte dashboard widget.
+			add_action( 'wp_dashboard_setup', array( $this, 'register_cb_dashboard_widget' ) );
+
 			// Always remove unwanted dashboard widgets.
 			add_action( 'wp_dashboard_setup', array( $this, 'remove_unwanted_dashboard_widgets' ) );
 
@@ -359,6 +362,36 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'normal' );
 			remove_meta_box( 'yoast_seo_posts_overview', 'dashboard', 'side' );
 			remove_meta_box( 'wpseo_dashboard_widget', 'dashboard', 'normal' );
+		}
+
+		/**
+		 * Register the custom Chillibyte dashboard widget.
+		 */
+		public function register_cb_dashboard_widget() {
+			wp_add_dashboard_widget(
+				'cb_dashboard_widget',
+				'Chillibyte',
+				array( $this, 'cb_dashboard_widget_display' )
+			);
+		}
+
+		/**
+		 * Display the custom Chillibyte dashboard widget.
+		 */
+		public function cb_dashboard_widget_display() {
+			$image_url = CB_BLOG_OPTIONS_PLUGIN_URL . 'assets/images/cb-full.jpg';
+			?>
+			<div style="display: flex; align-items: center; justify-content: space-around; gap: 16px;">
+				<img style="width: 50%;" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr__( 'Chillibyte', 'cbp-blog-options' ); ?>">
+				<a class="button button-primary" target="_blank" rel="noopener nofollow noreferrer" href="mailto:hello@chillibyte.co.uk">Contact</a>
+			</div>
+			<div>
+				<p><strong>Thanks for choosing Chillibyte!</strong></p>
+				<hr>
+				<p>Got a problem with your site, or want to make some changes and need us to take a look for you?</p>
+				<p>Use the link above to get in touch and we'll get back to you ASAP.</p>
+			</div>
+			<?php
 		}
 
 		/**

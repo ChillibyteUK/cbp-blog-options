@@ -2,7 +2,7 @@
 
 A WordPress plugin that provides granular control over blog functionality, allowing administrators to disable blog features, comments, and gravatars through a simple admin interface.
 
-The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted.
+The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, and adds a branded Chillibyte dashboard widget.
 
 ## Features
 
@@ -71,7 +71,7 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 
 ## Technical Details
 
-- **Version**: 1.1.1
+- **Version**: 1.1.2
 - **Requires**: WordPress 4.0+
 - **PHP**: 5.6+
 - **License**: GPL v2 or later
@@ -81,7 +81,8 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 ```
 cb-blog/
 ├── cb-blog-options.php    # Main plugin file
-└── README.md             # This documentation
+├── assets/images/cb-full.jpg # Dashboard widget image
+└── README.md                # This documentation
 ```
 
 ## Hooks and Filters Used
@@ -101,6 +102,10 @@ The plugin uses various WordPress hooks and filters to achieve its functionality
 This plugin is provided as-is. For customizations or support, please contact the plugin author.
 
 ## Changelog
+
+### 1.1.2
+- Added the Chillibyte dashboard widget to the WordPress admin dashboard
+- Moved the dashboard widget image into the plugin at `assets/images/cb-full.jpg`
 
 ### 1.1.1
 - Forced ACF blocks into edit mode immediately when inserted in the block editor
