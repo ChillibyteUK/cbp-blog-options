@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-    define( 'CB_BLOG_OPTIONS_VERSION', '1.1.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.1.1' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -407,6 +407,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 * Redirect post-related admin pages
 		 */
 		public function redirect_post_pages() {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended
 			global $pagenow;
 			$post_pages = array( 'edit.php', 'post-new.php', 'post.php' );
 			if ( in_array( $pagenow, $post_pages, true ) ) {
@@ -433,6 +434,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				wp_safe_redirect( admin_url() );
 				exit;
 			}
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		}
 
 
@@ -582,6 +584,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 
 		/**
 		 * Replace avatar with empty string
+		 * Vars are needed in the declaration to properly hook into the filter, but we can ignore them since we just want to return an empty string.
 		 *
 		 * @param string $avatar      The avatar HTML.
 		 * @param mixed  $id_or_email The user ID or email.
@@ -590,7 +593,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 * @param string $alt         The alt text.
 		 * @return string Empty string to disable avatars.
 		 */
-		public function disable_gravatar( $avatar, $id_or_email, $size, $default_avatar, $alt ) {
+		public function disable_gravatar( $avatar, $id_or_email, $size, $default_avatar, $alt ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 			return '';
 		}
 
