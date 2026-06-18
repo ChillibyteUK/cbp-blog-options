@@ -93,8 +93,74 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			// Initialize settings.
 			add_action( 'admin_init', array( $this, 'settings_init' ) );
 
+			// Keep ACF blocks in edit mode so their fields render in-canvas, not in the sidebar.
+			add_action( 'enqueue_block_editor_assets', array( $this, 'force_acf_blocks_edit_mode' ) );
+
 			// Apply functionality based on settings.
 			$this->apply_blog_restrictions();
+		}
+
+		/**
+		 * Force ACF blocks into edit mode in Gutenberg.
+		 *
+		 * ACF block registration can set `mode => edit` and `supports.mode => false`,
+		 * but Gutenberg may still preserve a saved `mode: preview` block attribute.
+		 * When that happens, ACF renders fields in the sidebar. This keeps ACF block
+		 * fields in the editor canvas by rewriting preview-mode ACF blocks to edit.
+		 *
+		 * @return void
+		 */
+		public function force_acf_blocks_edit_mode() {
+			$script = <<<'JS'
+wp.domReady(function () {
+	if (!window.wp || !wp.data || !wp.data.select || !wp.data.dispatch) return;
+
+	var isUpdating = false;
+	var selectBlockEditor = function () { return wp.data.select('core/block-editor'); };
+	var dispatchBlockEditor = function () { return wp.data.dispatch('core/block-editor'); };
+
+	function walk(blocks, callback) {
+		(blocks || []).forEach(function (block) {
+			callback(block);
+			if (block.innerBlocks && block.innerBlocks.length) {
+				walk(block.innerBlocks, callback);
+			}
+		});
+	}
+
+	function forceEditMode() {
+		if (isUpdating) return;
+
+		var editor = selectBlockEditor();
+		if (!editor || !editor.getBlocks) return;
+
+		var updates = [];
+		walk(editor.getBlocks(), function (block) {
+			if (
+				block.name &&
+				block.name.indexOf('acf/') === 0 &&
+				block.attributes &&
+				block.attributes.mode !== 'edit'
+			) {
+				updates.push(block.clientId);
+			}
+		});
+
+		if (!updates.length) return;
+
+		isUpdating = true;
+		updates.forEach(function (clientId) {
+			dispatchBlockEditor().updateBlockAttributes(clientId, { mode: 'edit' });
+		});
+		isUpdating = false;
+	}
+
+	forceEditMode();
+	wp.data.subscribe(forceEditMode);
+});
+JS;
+
+			wp_add_inline_script( 'wp-blocks', $script );
 		}
 
 		/**
