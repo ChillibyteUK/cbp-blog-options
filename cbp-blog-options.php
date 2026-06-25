@@ -55,11 +55,12 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public static function activate() {
 			// Set default options.
 			$default_options = array(
-				'disable_blog'      => 0,
-				'disable_comments'  => 1,
-				'disable_gravatars' => 1,
-				'disable_tags'      => 0,
-				'disable_emojis'    => 0,
+				'disable_blog'                => 0,
+				'disable_comments'            => 1,
+				'disable_gravatars'           => 1,
+				'disable_tags'                => 0,
+				'disable_emojis'              => 0,
+				'suppress_object_cache_warning' => 0,
 			);
 			add_option( 'cb_blog_options', $default_options );
 		}
@@ -228,6 +229,14 @@ JS;
 				'cb_blog_options',
 				'cb_blog_options_section'
 			);
+
+			add_settings_field(
+				'suppress_object_cache_warning',
+				'Suppress Object Cache Warning',
+				array( $this, 'suppress_object_cache_warning_render' ),
+				'cb_blog_options',
+				'cb_blog_options_section'
+			);
 		}
 
 		/**
@@ -298,6 +307,18 @@ JS;
 		}
 
 		/**
+		 * Render suppress object cache warning checkbox
+		 */
+		public function suppress_object_cache_warning_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['suppress_object_cache_warning'] ) ? $options['suppress_object_cache_warning'] : 0;
+			?>
+			<input type="checkbox" id="suppress_object_cache_warning" name="<?php echo esc_attr( $this->option_name ); ?>[suppress_object_cache_warning]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="suppress_object_cache_warning">Suppress Site Health "persistent object cache" warning (useful for small sites where object caching is unnecessary)</label>
+			<?php
+		}
+
+		/**
 		 * Options page HTML
 		 */
 		public function options_page() {
@@ -347,6 +368,11 @@ JS;
 
 			// Always remove unwanted dashboard widgets.
 			add_action( 'wp_dashboard_setup', array( $this, 'remove_unwanted_dashboard_widgets' ) );
+
+			// Suppress persistent object cache warning in Site Health if enabled.
+			if ( isset( $options['suppress_object_cache_warning'] ) && $options['suppress_object_cache_warning'] ) {
+				add_filter( 'site_status_should_suggest_persistent_object_cache', '__return_false' );
+			}
 
 			// Check if blog is disabled.
 			if ( isset( $options['disable_blog'] ) && $options['disable_blog'] ) {
