@@ -845,4 +845,24 @@ add_action(
 	}
 );
 
+// Prevent TinyMCE focus-steal / scroll-jump in ACF Gutenberg repeaters.
+// When ACF adds a repeater row (or flexible content layout) containing a
+// WYSIWYG field, TinyMCE initialises the editor and may steal focus from
+// the editor the user was typing in, causing the page to scroll to it.
+// This JS subscriber:
+//   1. Forces `delay: true` on all WYSIWYG fields via the ACF filter API
+//      so editors only initialise when clicked rather than on row add.
+//   2. Captures scroll position before ACF DOM mutations and restores it
+//      if the page jumps after the new editor is mounted.
+add_action(
+	'enqueue_block_editor_assets',
+	function () {
+		wp_add_inline_script(
+			'wp-block-editor',
+			"( function () {\n\tvar savedScrollY = 0;\n\tvar guardActive = false;\n\n\tif ( typeof acf !== 'undefined' && acf.add_filter ) {\n\t\tacf.add_filter( 'wysiwyg_field_args', function ( args ) {\n\t\t\tif ( args.delay === 0 || args.delay === false || args.delay === undefined ) {\n\t\t\t\targs.delay = true;\n\t\t\t}\n\t\t\treturn args;\n\t\t} );\n\t}\n\n\tif ( typeof acf !== 'undefined' && acf.addAction ) {\n\t\tacf.addAction( 'append', function () {\n\t\t\tsavedScrollY = window.scrollY;\n\t\t\tguardActive = true;\n\t\t}, 1 );\n\n\t\tacf.addAction( 'append', function () {\n\t\t\twindow.setTimeout( function () {\n\t\t\t\tif ( guardActive && savedScrollY > 0 && Math.abs( window.scrollY - savedScrollY ) > 10 ) {\n\t\t\t\t\twindow.scrollTo( window.scrollX, savedScrollY );\n\t\t\t\t}\n\t\t\t\tguardActive = false;\n\t\t\t}, 100 );\n\t\t}, 999 );\n\t}\n} )();",
+			'after'
+		);
+	}
+);
+
 ?>
