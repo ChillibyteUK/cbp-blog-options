@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.3.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.3.1' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -891,6 +891,69 @@ add_action(
 		// wysiwyg fields renders as unstyled browser buttons. The block
 		// editor's own editor.min.css is a different file and doesn't cover it.
 		wp_enqueue_style( 'editor-buttons' );
+
+		// ACF's repeater "Add row", gallery "Add to gallery" etc. are core admin
+		// buttons (.button / .button-primary). Those styles live in wp-includes,
+		// with the per-user colour scheme supplying the fills. Both are scoped
+		// under .wp-core-ui, which the iframe body gets from the script below.
+		wp_enqueue_style( 'buttons' );
+		wp_enqueue_style( 'colors' );
+	}
+);
+
+
+// Core admin button styles are all scoped under `.wp-core-ui`, a class the admin
+// <body> carries but the block editor's canvas iframe body does not — so without
+// this every ACF button in a block renders as a bare browser button. Gutenberg
+// rewrites that className on re-render, so re-assert the class rather than
+// setting it once, and watch for the iframe being remounted.
+add_action(
+	'enqueue_block_editor_assets',
+	function () {
+		if ( ! cbp_acf_blocks_force_edit_mode() ) {
+			return;
+		}
+
+		$script = <<<'JS'
+( function () {
+	function tag( body ) {
+		if ( body && ! body.classList.contains( 'wp-core-ui' ) ) {
+			body.classList.add( 'wp-core-ui' );
+		}
+	}
+
+	function attach( iframe ) {
+		var doc = iframe.contentDocument;
+
+		if ( ! doc || ! doc.body ) {
+			return false;
+		}
+
+		if ( iframe.dataset.cbpWpCoreUi ) {
+			return true;
+		}
+
+		iframe.dataset.cbpWpCoreUi = '1';
+		tag( doc.body );
+
+		new window.MutationObserver( function () {
+			tag( doc.body );
+		} ).observe( doc.body, { attributes: true, attributeFilter: [ 'class' ] } );
+
+		return true;
+	}
+
+	window.setInterval( function () {
+		var iframe = document.querySelector( 'iframe[name="editor-canvas"]' );
+
+		if ( iframe ) {
+			attach( iframe );
+		}
+	}, 500 );
+}() );
+JS;
+
+		wp_add_inline_script( 'wp-block-editor', $script, 'after' );
 	}
 );
 
