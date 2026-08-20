@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.3.1
+ * Version: 1.3.2
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.3.1' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.3.2' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -847,6 +847,24 @@ function cbp_acf_blocks_force_edit_mode() {
 	return (bool) apply_filters( 'cbp_acf_blocks_force_edit_mode', true );
 }
 
+/**
+ * Whether the block editor canvas is rendered inside an iframe.
+ *
+ * WP 7.1 hardcodes `shouldIframe: true` on the block canvas; before that, a
+ * screen with meta boxes rendered the canvas inline, where ACF's fields
+ * inherit the admin document's styles and scripts and need no help from us.
+ *
+ * Everything that only exists to prop up ACF inside that iframe is gated on
+ * this, so sites pinned to 7.0.x don't carry the workarounds.
+ *
+ * @return bool
+ */
+function cbp_editor_canvas_is_iframed() {
+	$iframed = version_compare( get_bloginfo( 'version' ), '7.1', '>=' );
+
+	return (bool) apply_filters( 'cbp_editor_canvas_is_iframed', $iframed );
+}
+
 
 // Prevent TinyMCE focus-steal / scroll-jump in ACF Gutenberg repeaters.
 // When ACF adds a repeater row (or flexible content layout) containing a
@@ -881,6 +899,11 @@ add_action(
 			return;
 		}
 
+		// Only needed when the canvas is an iframe; inline, it already has these.
+		if ( ! cbp_editor_canvas_is_iframed() ) {
+			return;
+		}
+
 		wp_enqueue_style( 'acf-input' );
 
 		if ( wp_style_is( 'acf-pro-input', 'registered' ) ) {
@@ -910,7 +933,7 @@ add_action(
 add_action(
 	'enqueue_block_editor_assets',
 	function () {
-		if ( ! cbp_acf_blocks_force_edit_mode() ) {
+		if ( ! cbp_acf_blocks_force_edit_mode() || ! cbp_editor_canvas_is_iframed() ) {
 			return;
 		}
 
