@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.4.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.5.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -880,6 +880,25 @@ add_filter(
 function cbp_acf_blocks_force_edit_mode() {
 	return (bool) apply_filters( 'cbp_acf_blocks_force_edit_mode', true );
 }
+
+
+// Never let a site take a major core version on its own.
+//
+// WP 7.1 hardcodes the editor canvas into an iframe, where ACF's wysiwyg
+// fields lose TinyMCE entirely — so an unattended jump to a new major breaks
+// content editing on any site using ACF blocks. Majors stay a deliberate,
+// per-site decision; minor and security auto-updates are untouched.
+//
+// Applied unconditionally rather than as a setting, so a new site is safe
+// before anyone visits its options page. Re-enable per site with:
+//   add_filter( 'cbp_block_major_core_auto_updates', '__return_false' );
+add_filter(
+	'allow_major_auto_core_updates',
+	function ( $allow ) {
+		return apply_filters( 'cbp_block_major_core_auto_updates', true ) ? false : $allow;
+	},
+	99
+);
 
 /**
  * Whether the block editor canvas is rendered inside an iframe.
