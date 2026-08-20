@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.2.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.3.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -112,6 +112,10 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		 * @return void
 		 */
 		public function force_acf_blocks_edit_mode() {
+			if ( ! cbp_acf_blocks_force_edit_mode() ) {
+				return;
+			}
+
 			$script = <<<'JS'
 wp.domReady(function () {
 	if (!window.wp || !wp.data || !wp.data.select || !wp.data.dispatch) return;
@@ -163,6 +167,7 @@ JS;
 
 			wp_add_inline_script( 'wp-blocks', $script );
 		}
+
 
 		/**
 		 * Add admin menu under Tools
@@ -828,22 +833,20 @@ add_filter(
 );
 
 
-// Force all ACF blocks to always display in edit mode in the block editor.
-// The 'mode' registration key only sets the default for new blocks; existing blocks
-// have their mode persisted in the serialised HTML comment. This JS subscriber
-// watches the block store and resets any ACF block that drifts to preview/auto.
-// In newer WordPress builds the editor can finish hydrating after this script loads,
-// so boot the watcher lazily and re-queue mode flips until the block lands in edit.
-add_action(
-	'enqueue_block_editor_assets',
-	function () {
-		wp_add_inline_script(
-			'wp-block-editor',
-			"( function () {\n\tvar pending = {};\n\tvar watcherStarted = false;\n\n\tfunction getEditorSelect() {\n\t\treturn window.wp && wp.data && wp.data.select ? wp.data.select( 'core/block-editor' ) : null;\n\t}\n\n\tfunction getEditorDispatch() {\n\t\treturn window.wp && wp.data && wp.data.dispatch ? wp.data.dispatch( 'core/block-editor' ) : null;\n\t}\n\n\tfunction queueEditMode( clientId ) {\n\t\tif ( pending[ clientId ] ) {\n\t\t\treturn;\n\t\t}\n\n\t\tpending[ clientId ] = true;\n\n\t\twindow.requestAnimationFrame( function () {\n\t\t\tvar select = getEditorSelect();\n\t\t\tvar dispatch = getEditorDispatch();\n\t\t\tvar block = select && select.getBlock ? select.getBlock( clientId ) : null;\n\n\t\t\tpending[ clientId ] = false;\n\n\t\t\tif ( ! block || ! block.name || block.name.indexOf( 'acf/' ) !== 0 ) {\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tif ( block.attributes && block.attributes.mode === 'edit' ) {\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tif ( dispatch && dispatch.updateBlockAttributes ) {\n\t\t\t\tdispatch.updateBlockAttributes( clientId, { mode: 'edit' } );\n\t\t\t\twindow.setTimeout( function () {\n\t\t\t\t\tvar refreshedSelect = getEditorSelect();\n\t\t\t\t\tvar refreshedBlock = refreshedSelect && refreshedSelect.getBlock ? refreshedSelect.getBlock( clientId ) : null;\n\n\t\t\t\t\tif ( refreshedBlock && refreshedBlock.attributes && refreshedBlock.attributes.mode !== 'edit' ) {\n\t\t\t\t\t\tqueueEditMode( clientId );\n\t\t\t\t\t}\n\t\t\t\t}, 50 );\n\t\t\t}\n\t\t} );\n\t}\n\n\tfunction forceAllAcfBlocksToEdit() {\n\t\tvar select = getEditorSelect();\n\t\tvar clientIds = select && select.getClientIdsWithDescendants ? select.getClientIdsWithDescendants() : [];\n\n\t\tclientIds.forEach( function ( clientId ) {\n\t\t\tvar blockName = select.getBlockName ? select.getBlockName( clientId ) : '';\n\n\t\t\tif ( blockName && blockName.indexOf( 'acf/' ) === 0 ) {\n\t\t\t\tqueueEditMode( clientId );\n\t\t\t}\n\t\t} );\n\t}\n\n\tfunction startWatcher() {\n\t\tif ( watcherStarted ) {\n\t\t\treturn;\n\t\t}\n\n\t\tvar select = getEditorSelect();\n\t\tif ( ! select || ! select.getClientIdsWithDescendants ) {\n\t\t\twindow.setTimeout( startWatcher, 100 );\n\t\t\treturn;\n\t\t}\n\n\t\twatcherStarted = true;\n\t\tforceAllAcfBlocksToEdit();\n\t\twp.data.subscribe( forceAllAcfBlocksToEdit );\n\t}\n\n\tif ( window.wp && wp.domReady ) {\n\t\twp.domReady( startWatcher );\n\t} else {\n\t\tstartWatcher();\n\t}\n}() );",
-			'after'
-		);
-	}
-);
+/**
+ * Whether ACF blocks should be pinned to edit mode, rendering their fields in
+ * the canvas rather than the inspector sidebar.
+ *
+ * Everything that depends on in-canvas fields — the mode watcher below, the
+ * iframe stylesheets, and hiding ACF's duplicate inspector copy — is gated on
+ * this, so a site can opt out of the whole arrangement in one place.
+ *
+ * @return bool
+ */
+function cbp_acf_blocks_force_edit_mode() {
+	return (bool) apply_filters( 'cbp_acf_blocks_force_edit_mode', true );
+}
+
 
 // Prevent TinyMCE focus-steal / scroll-jump in ACF Gutenberg repeaters.
 // When ACF adds a repeater row (or flexible content layout) containing a
@@ -874,7 +877,7 @@ add_action(
 add_action(
 	'enqueue_block_assets',
 	function () {
-		if ( ! is_admin() || ! wp_style_is( 'acf-input', 'registered' ) ) {
+		if ( ! is_admin() || ! wp_style_is( 'acf-input', 'registered' ) || ! cbp_acf_blocks_force_edit_mode() ) {
 			return;
 		}
 
@@ -883,6 +886,28 @@ add_action(
 		if ( wp_style_is( 'acf-pro-input', 'registered' ) ) {
 			wp_enqueue_style( 'acf-pro-input' );
 		}
+
+		// Classic-editor chrome: without this the Visual/Text switcher on
+		// wysiwyg fields renders as unstyled browser buttons. The block
+		// editor's own editor.min.css is a different file and doesn't cover it.
+		wp_enqueue_style( 'editor-buttons' );
+	}
+);
+
+
+// ACF renders the selected block's fields into the inspector sidebar as well as
+// the canvas, so forcing edit mode above leaves the same form mounted twice.
+// The canvas copy is the one we want, so hide the inspector duplicate — but only
+// while the mode watcher is guaranteeing a canvas copy exists to hide it in
+// favour of, otherwise the fields would be unreachable.
+add_action(
+	'admin_head',
+	function () {
+		if ( ! wp_style_is( 'acf-input', 'registered' ) || ! cbp_acf_blocks_force_edit_mode() ) {
+			return;
+		}
+
+		echo '<style>.block-editor-block-inspector .acf-block-component.acf-block-panel{display:none;}</style>';
 	}
 );
 
