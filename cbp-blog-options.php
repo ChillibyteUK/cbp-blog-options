@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.1.2
+ * Version: 1.2.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.1.2' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.2.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -861,6 +861,44 @@ add_action(
 			'wp-block-editor',
 			"( function () {\n\tvar savedScrollY = 0;\n\tvar guardActive = false;\n\n\tif ( typeof acf !== 'undefined' && acf.add_filter ) {\n\t\tacf.add_filter( 'wysiwyg_field_args', function ( args ) {\n\t\t\tif ( args.delay === 0 || args.delay === false || args.delay === undefined ) {\n\t\t\t\targs.delay = true;\n\t\t\t}\n\t\t\treturn args;\n\t\t} );\n\t}\n\n\tif ( typeof acf !== 'undefined' && acf.addAction ) {\n\t\tacf.addAction( 'append', function () {\n\t\t\tsavedScrollY = window.scrollY;\n\t\t\tguardActive = true;\n\t\t}, 1 );\n\n\t\tacf.addAction( 'append', function () {\n\t\t\twindow.setTimeout( function () {\n\t\t\t\tif ( guardActive && savedScrollY > 0 && Math.abs( window.scrollY - savedScrollY ) > 10 ) {\n\t\t\t\t\twindow.scrollTo( window.scrollX, savedScrollY );\n\t\t\t\t}\n\t\t\t\tguardActive = false;\n\t\t\t}, 100 );\n\t\t}, 999 );\n\t}\n} )();",
 			'after'
+		);
+	}
+);
+
+
+// WP 7.0 moved meta boxes to their own panel, so they no longer force the block
+// editor canvas out of an iframe. ACF only injects its small inline-editing
+// stylesheet into that iframe, so ACF blocks rendered in edit mode — which is
+// all of them, per the block above — get no field styling at all. Styles
+// enqueued on 'enqueue_block_assets' in admin do reach the iframe.
+add_action(
+	'enqueue_block_assets',
+	function () {
+		if ( ! is_admin() || ! wp_style_is( 'acf-input', 'registered' ) ) {
+			return;
+		}
+
+		wp_enqueue_style( 'acf-input' );
+
+		if ( wp_style_is( 'acf-pro-input', 'registered' ) ) {
+			wp_enqueue_style( 'acf-pro-input' );
+		}
+	}
+);
+
+
+// WP 7.1's QTags constructor returns early — without setting `settings` — when
+// it can't find the editor textarea by id. `new QTags()` still hands back a
+// truthy object, so ACF's own `if ( ! instance ) return` guard misses it and
+// buildQuicktags() throws reading `settings.buttons`. That single throw aborts
+// ACF's whole field-init pass, leaving every block in the editor unstyled or
+// showing "This block has encountered an error and cannot be previewed."
+add_action(
+	'acf/input/admin_enqueue_scripts',
+	function () {
+		wp_add_inline_script(
+			'acf-input',
+			"( function () {\n\tif ( typeof acf === 'undefined' || ! acf.tinymce || typeof acf.tinymce.buildQuicktags !== 'function' ) {\n\t\treturn;\n\t}\n\n\tvar buildQuicktags = acf.tinymce.buildQuicktags;\n\n\tacf.tinymce.buildQuicktags = function ( instance ) {\n\t\tif ( ! instance || ! instance.settings ) {\n\t\t\treturn false;\n\t\t}\n\n\t\treturn buildQuicktags.apply( this, arguments );\n\t};\n}() );"
 		);
 	}
 );
