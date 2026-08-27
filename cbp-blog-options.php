@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.5.0
+ * Version: 1.6.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.5.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.6.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -62,6 +62,14 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				'disable_emojis'              => 0,
 				'suppress_object_cache_warning' => 0,
 				'suppress_core_update_nag'    => 0,
+				// Security headers — all opt-in (see settings_init()); a header that
+				// changes browser behaviour site-wide shouldn't turn itself on for an
+				// existing site just because the plugin updated.
+				'enable_hsts'                 => 0,
+				'hsts_preload'                => 0,
+				'enable_coop'                 => 0,
+				'enable_xfo'                  => 0,
+				'enable_trusted_types'        => 0,
 			);
 			add_option( 'cb_blog_options', $default_options );
 		}
@@ -251,6 +259,111 @@ JS;
 				'cb_blog_options',
 				'cb_blog_options_section'
 			);
+
+			add_settings_section(
+				'cb_blog_options_security_section',
+				'Security Headers',
+				array( $this, 'security_section_callback' ),
+				'cb_blog_options'
+			);
+
+			add_settings_field(
+				'enable_hsts',
+				'HSTS',
+				array( $this, 'enable_hsts_render' ),
+				'cb_blog_options',
+				'cb_blog_options_security_section'
+			);
+
+			add_settings_field(
+				'enable_coop',
+				'Cross-Origin-Opener-Policy',
+				array( $this, 'enable_coop_render' ),
+				'cb_blog_options',
+				'cb_blog_options_security_section'
+			);
+
+			add_settings_field(
+				'enable_xfo',
+				'X-Frame-Options',
+				array( $this, 'enable_xfo_render' ),
+				'cb_blog_options',
+				'cb_blog_options_security_section'
+			);
+
+			add_settings_field(
+				'enable_trusted_types',
+				'Trusted Types',
+				array( $this, 'enable_trusted_types_render' ),
+				'cb_blog_options',
+				'cb_blog_options_security_section'
+			);
+		}
+
+		/**
+		 * Security Headers section callback
+		 */
+		public function security_section_callback() {
+			echo '<p>Response headers targeting Lighthouse\'s security header audits (HSTS, COOP, clickjacking, Trusted Types). Each is opt-in — enable per project after checking it doesn\'t break anything the site relies on (embedded/popup auth flows, iframes, third-party scripts).</p>';
+		}
+
+		/**
+		 * Render enable HSTS checkbox
+		 */
+		public function enable_hsts_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_hsts'] ) ? $options['enable_hsts'] : 0;
+			$preload = isset( $options['hsts_preload'] ) ? $options['hsts_preload'] : 0;
+			?>
+			<input type="checkbox" id="enable_hsts" name="<?php echo esc_attr( $this->option_name ); ?>[enable_hsts]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_hsts">Send <code>Strict-Transport-Security: max-age=31536000; includeSubDomains</code> (only sent when the request is actually HTTPS)</label>
+			<p style="margin: 0.5em 0 0 1.75em;">
+				<input type="checkbox" id="hsts_preload" name="<?php echo esc_attr( $this->option_name ); ?>[hsts_preload]" value="1" <?php checked( 1, $preload ); ?>>
+				<label for="hsts_preload">Also add <code>preload</code></label> &mdash; only submit to <a href="https://hstspreload.org/" target="_blank" rel="noopener noreferrer">hstspreload.org</a> once every subdomain is confirmed HTTPS-only; removal from the preload list takes months to propagate.
+			</p>
+			<p class="description">Confirm HTTPS works on every subdomain this site (and any subdomains under it) uses before enabling <code>includeSubDomains</code> — it applies to the whole domain, not just this site.</p>
+			<?php
+		}
+
+		/**
+		 * Render enable COOP checkbox
+		 */
+		public function enable_coop_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_coop'] ) ? $options['enable_coop'] : 0;
+			?>
+			<input type="checkbox" id="enable_coop" name="<?php echo esc_attr( $this->option_name ); ?>[enable_coop]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_coop">Send <code>Cross-Origin-Opener-Policy: same-origin-allow-popups</code></label>
+			<p class="description">Isolates this site's browsing context from cross-origin pages that open or are opened by it, without breaking popup-based flows (OAuth, payment gateway checkouts) that rely on <code>window.opener</code>. The stricter <code>same-origin</code> value isn't offered here as a toggle — it can break those popup flows outright, so treat it as a deliberate per-site decision rather than a checkbox default.</p>
+			<?php
+		}
+
+		/**
+		 * Render enable X-Frame-Options checkbox
+		 */
+		public function enable_xfo_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_xfo'] ) ? $options['enable_xfo'] : 0;
+			?>
+			<input type="checkbox" id="enable_xfo" name="<?php echo esc_attr( $this->option_name ); ?>[enable_xfo]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_xfo">Send <code>X-Frame-Options: SAMEORIGIN</code></label>
+			<p class="description">Blocks this site from being framed by any other origin (the standard clickjacking mitigation), while still allowing the site to frame itself. Skip this if a legitimate third party deliberately embeds the site in an iframe.</p>
+			<?php
+		}
+
+		/**
+		 * Render enable Trusted Types checkbox
+		 */
+		public function enable_trusted_types_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_trusted_types'] ) ? $options['enable_trusted_types'] : 0;
+			?>
+			<input type="checkbox" id="enable_trusted_types" name="<?php echo esc_attr( $this->option_name ); ?>[enable_trusted_types]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_trusted_types">Send <code>Content-Security-Policy: require-trusted-types-for 'script'</code> (front-end only)</label>
+			<p class="description">
+				<strong>Experimental — read before enabling.</strong> This directive blocks every plain <code>innerHTML</code>/<code>eval</code>-style DOM write on the page unless something registers a Trusted Types policy to allow it first — nothing in a typical stack (TinyMCE, GTM, Swiper, GSAP, jQuery plugins) is Trusted-Types-aware, so enabling this with no policy registered would break the front-end outright. To avoid that, this option also prints an early inline script registering a permissive pass-through <code>default</code> policy, so existing scripts keep working unmodified. That satisfies Lighthouse's Trusted Types audit and stops any script from registering its own competing policy, but a pass-through policy doesn't sanitise anything — it's a first step (and a real one: it closes off a class of policy-injection attacks), not a substitute for auditing this site's own JS for genuine DOM XSS sinks. Deliberately scoped to the front-end only; wp-admin is excluded because ACF, TinyMCE and the media modals rely on exactly the sinks this would block. Test thoroughly (browser console, third-party embeds, forms, GTM tags) before relying on it in production.
+			</p>
+			<?php
 		}
 
 		/**
@@ -434,7 +547,109 @@ JS;
 			if ( isset( $options['disable_emojis'] ) && $options['disable_emojis'] ) {
 				add_action( 'init', array( $this, 'disable_emojis_functionality' ), 1 );
 			}
+
+			// Security headers — each individually opt-in, see settings_init().
+			if (
+				! empty( $options['enable_hsts'] ) ||
+				! empty( $options['enable_coop'] ) ||
+				! empty( $options['enable_xfo'] ) ||
+				! empty( $options['enable_trusted_types'] )
+			) {
+				add_action( 'send_headers', array( $this, 'send_security_headers' ) );
+			}
+
+			// Trusted Types needs a default policy registered client-side before any
+			// other inline script can hit a sink it would otherwise block — see
+			// print_trusted_types_default_policy() for why this is front-end only.
+			if ( ! empty( $options['enable_trusted_types'] ) && ! is_admin() ) {
+				add_action( 'wp_head', array( $this, 'print_trusted_types_default_policy' ), 0 );
+			}
 		}
+
+		/**
+		 * Send opt-in security response headers (HSTS, COOP, X-Frame-Options,
+		 * Trusted Types enforcement). Each is independently toggled in Security
+		 * Headers settings — see settings_init()/security_section_callback().
+		 */
+		public function send_security_headers() {
+			if ( headers_sent() ) {
+				return;
+			}
+
+			$options = get_option( $this->option_name );
+
+			// HSTS only makes sense — and only takes effect in the browser — on an
+			// actually-HTTPS response; sending it over plain HTTP would be a no-op
+			// at best and a confusing false signal in a headers dump at worst.
+			if ( ! empty( $options['enable_hsts'] ) && is_ssl() ) {
+				$value = 'max-age=31536000; includeSubDomains';
+				if ( ! empty( $options['hsts_preload'] ) ) {
+					$value .= '; preload';
+				}
+				header( 'Strict-Transport-Security: ' . $value );
+			}
+
+			// same-origin-allow-popups isolates the page from cross-origin openers/
+			// openees while still allowing window.opener-based popup flows (OAuth,
+			// payment gateways) to keep working — the plain same-origin value is
+			// stricter but breaks those flows, so it's not offered as a checkbox.
+			if ( ! empty( $options['enable_coop'] ) ) {
+				header( 'Cross-Origin-Opener-Policy: same-origin-allow-popups' );
+			}
+
+			// Classic clickjacking mitigation — still allows the site to frame itself.
+			if ( ! empty( $options['enable_xfo'] ) ) {
+				header( 'X-Frame-Options: SAMEORIGIN' );
+			}
+
+			// Front-end only — see print_trusted_types_default_policy() for why
+			// wp-admin is excluded, and the settings field description for what a
+			// pass-through default policy does and doesn't protect against.
+			if ( ! empty( $options['enable_trusted_types'] ) && ! is_admin() ) {
+				header( "Content-Security-Policy: require-trusted-types-for 'script'" );
+			}
+		}
+
+		/**
+		 * Register a permissive pass-through Trusted Types 'default' policy as
+		 * early as possible in <head>, before any other inline/enqueued script
+		 * can hit a sink (innerHTML, eval, etc.) that require-trusted-types-for
+		 * 'script' would otherwise block outright. Without this, turning the CSP
+		 * directive on would hard-break the first plugin/theme script that does a
+		 * plain string assignment into one of those sinks — which is effectively
+		 * all of them (TinyMCE, GTM, Swiper, GSAP, jQuery plugins, none of which
+		 * are Trusted-Types-aware). A pass-through default policy keeps existing
+		 * scripts working unmodified and satisfies the browser's Trusted Types
+		 * requirement, but — precisely because it passes strings through
+		 * unchanged — it doesn't sanitise anything on its own; real protection
+		 * needs a tightened, per-site policy once the site's own JS has been
+		 * audited for genuine DOM XSS sinks. Deliberately not wired into
+		 * wp-admin: ACF, TinyMCE and the media modals rely on exactly the sinks
+		 * this would otherwise block, and admin isn't the attack surface this is
+		 * meant to harden.
+		 */
+		public function print_trusted_types_default_policy() {
+			?>
+<script>
+(function () {
+	if ( typeof window.trustedTypes === 'undefined' || typeof window.trustedTypes.createPolicy !== 'function' ) {
+		return;
+	}
+	try {
+		window.trustedTypes.createPolicy( 'default', {
+			createHTML: function ( s ) { return s; },
+			createScript: function ( s ) { return s; },
+			createScriptURL: function ( s ) { return s; },
+		} );
+	} catch ( e ) {
+		// Another script already registered a 'default' policy first — nothing
+		// to do here, that policy governs instead.
+	}
+}());
+</script>
+			<?php
+		}
+
 		/**
 		 * Disable WordPress emoji scripts/styles.
 		 */

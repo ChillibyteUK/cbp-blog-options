@@ -71,7 +71,7 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 
 ## Technical Details
 
-- **Version**: 1.1.2
+- **Version**: 1.6.0
 - **Requires**: WordPress 4.0+
 - **PHP**: 5.6+
 - **License**: GPL v2 or later
@@ -102,6 +102,13 @@ The plugin uses various WordPress hooks and filters to achieve its functionality
 This plugin is provided as-is. For customizations or support, please contact the plugin author.
 
 ## Changelog
+
+### 1.6.0
+- Added a Security Headers section to the settings page, each toggle independently opt-in (off by default on upgrade):
+  - **HSTS** — `Strict-Transport-Security: max-age=31536000; includeSubDomains`, only sent on an actual HTTPS response, with an optional `preload` sub-toggle
+  - **COOP** — `Cross-Origin-Opener-Policy: same-origin-allow-popups`
+  - **X-Frame-Options** — `X-Frame-Options: SAMEORIGIN` (clickjacking mitigation)
+  - **Trusted Types** — `Content-Security-Policy: require-trusted-types-for 'script'`, front-end only, paired with an early inline script registering a permissive pass-through `default` Trusted Types policy so existing third-party scripts keep working. Experimental — see the in-admin field description before enabling.
 
 ### 1.1.2
 - Added the Chillibyte dashboard widget to the WordPress admin dashboard
