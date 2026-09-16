@@ -71,7 +71,7 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 
 ## Technical Details
 
-- **Version**: 1.6.0
+- **Version**: 1.7.0
 - **Requires**: WordPress 4.0+
 - **PHP**: 5.6+
 - **License**: GPL v2 or later
@@ -96,12 +96,23 @@ The plugin uses various WordPress hooks and filters to achieve its functionality
 - `admin_bar_menu` - For modifying admin bar
 - `comments_open` / `pings_open` - For disabling comments
 - `get_avatar` - For disabling gravatars
+- `allow_major_auto_core_updates` - For blocking major core auto-updates
+- `enqueue_block_assets` / `enqueue_block_editor_assets` - For ACF/Gutenberg iframe fixes
+- `acf/input/admin_enqueue_scripts` - For the QTags crash fix
 
 ## Support
 
 This plugin is provided as-is. For customizations or support, please contact the plugin author.
 
 ## Changelog
+
+### 1.7.0
+- Added three more opt-in Security Headers, and split the settings page into "Blog Options" / "Security Headers" tabs so the growing header list doesn't crowd out the blog toggles:
+  - **X-Content-Type-Options** — `X-Content-Type-Options: nosniff`, safe to enable on virtually any site
+  - **Referrer-Policy** — `Referrer-Policy: strict-origin-when-cross-origin`, sent as a header (not just the `<meta>` tag WordPress core already prints) so header-only scanners like securityheaders.com pick it up
+  - **Permissions-Policy** — `Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()`
+- ACF-specific block-editor workarounds (edit-mode enforcement, iframe styling fixes, the QTags crash fix) now only register on sites with ACF/ACF PRO active, rather than on every site regardless
+- Added a direct "Open Blog Options" link to the plugin's row on the Installed Plugins page, alongside the existing action link
 
 ### 1.6.0
 - Added a Security Headers section to the settings page, each toggle independently opt-in (off by default on upgrade):

@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.6.0
+ * Version: 1.7.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.6.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.7.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -55,21 +55,24 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 		public static function activate() {
 			// Set default options.
 			$default_options = array(
-				'disable_blog'                => 0,
-				'disable_comments'            => 1,
-				'disable_gravatars'           => 1,
-				'disable_tags'                => 0,
-				'disable_emojis'              => 0,
+				'disable_blog'                  => 0,
+				'disable_comments'              => 1,
+				'disable_gravatars'             => 1,
+				'disable_tags'                  => 0,
+				'disable_emojis'                => 0,
 				'suppress_object_cache_warning' => 0,
-				'suppress_core_update_nag'    => 0,
+				'suppress_core_update_nag'      => 0,
 				// Security headers — all opt-in (see settings_init()); a header that
 				// changes browser behaviour site-wide shouldn't turn itself on for an
 				// existing site just because the plugin updated.
-				'enable_hsts'                 => 0,
-				'hsts_preload'                => 0,
-				'enable_coop'                 => 0,
-				'enable_xfo'                  => 0,
-				'enable_trusted_types'        => 0,
+				'enable_hsts'                   => 0,
+				'hsts_preload'                  => 0,
+				'enable_coop'                   => 0,
+				'enable_xfo'                    => 0,
+				'enable_trusted_types'          => 0,
+				'enable_xcto'                   => 0,
+				'enable_referrer_policy'        => 0,
+				'enable_permissions_policy'     => 0,
 			);
 			add_option( 'cb_blog_options', $default_options );
 		}
@@ -104,7 +107,10 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 			add_action( 'admin_init', array( $this, 'settings_init' ) );
 
 			// Keep ACF blocks in edit mode so their fields render in-canvas, not in the sidebar.
-			add_action( 'enqueue_block_editor_assets', array( $this, 'force_acf_blocks_edit_mode' ) );
+			// No-op entirely on sites without ACF active.
+			if ( cbp_is_acf_active() ) {
+				add_action( 'enqueue_block_editor_assets', array( $this, 'force_acf_blocks_edit_mode' ) );
+			}
 
 			// Apply functionality based on settings.
 			$this->apply_blog_restrictions();
@@ -260,18 +266,23 @@ JS;
 				'cb_blog_options_section'
 			);
 
+			// Registered under their own page slug ('cb_blog_options_headers') rather
+			// than 'cb_blog_options' so options_page() can render this section into
+			// its own tab via a separate do_settings_sections() call. The option
+			// group passed to settings_fields()/register_setting() is unaffected —
+			// both tabs still save to the same 'cb_blog_options' option.
 			add_settings_section(
 				'cb_blog_options_security_section',
 				'Security Headers',
 				array( $this, 'security_section_callback' ),
-				'cb_blog_options'
+				'cb_blog_options_headers'
 			);
 
 			add_settings_field(
 				'enable_hsts',
 				'HSTS',
 				array( $this, 'enable_hsts_render' ),
-				'cb_blog_options',
+				'cb_blog_options_headers',
 				'cb_blog_options_security_section'
 			);
 
@@ -279,7 +290,7 @@ JS;
 				'enable_coop',
 				'Cross-Origin-Opener-Policy',
 				array( $this, 'enable_coop_render' ),
-				'cb_blog_options',
+				'cb_blog_options_headers',
 				'cb_blog_options_security_section'
 			);
 
@@ -287,7 +298,31 @@ JS;
 				'enable_xfo',
 				'X-Frame-Options',
 				array( $this, 'enable_xfo_render' ),
-				'cb_blog_options',
+				'cb_blog_options_headers',
+				'cb_blog_options_security_section'
+			);
+
+			add_settings_field(
+				'enable_xcto',
+				'X-Content-Type-Options',
+				array( $this, 'enable_xcto_render' ),
+				'cb_blog_options_headers',
+				'cb_blog_options_security_section'
+			);
+
+			add_settings_field(
+				'enable_referrer_policy',
+				'Referrer-Policy',
+				array( $this, 'enable_referrer_policy_render' ),
+				'cb_blog_options_headers',
+				'cb_blog_options_security_section'
+			);
+
+			add_settings_field(
+				'enable_permissions_policy',
+				'Permissions-Policy',
+				array( $this, 'enable_permissions_policy_render' ),
+				'cb_blog_options_headers',
 				'cb_blog_options_security_section'
 			);
 
@@ -295,7 +330,7 @@ JS;
 				'enable_trusted_types',
 				'Trusted Types',
 				array( $this, 'enable_trusted_types_render' ),
-				'cb_blog_options',
+				'cb_blog_options_headers',
 				'cb_blog_options_security_section'
 			);
 		}
@@ -348,6 +383,45 @@ JS;
 			<input type="checkbox" id="enable_xfo" name="<?php echo esc_attr( $this->option_name ); ?>[enable_xfo]" value="1" <?php checked( 1, $checked ); ?>>
 			<label for="enable_xfo">Send <code>X-Frame-Options: SAMEORIGIN</code></label>
 			<p class="description">Blocks this site from being framed by any other origin (the standard clickjacking mitigation), while still allowing the site to frame itself. Skip this if a legitimate third party deliberately embeds the site in an iframe.</p>
+			<?php
+		}
+
+		/**
+		 * Render enable X-Content-Type-Options checkbox
+		 */
+		public function enable_xcto_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_xcto'] ) ? $options['enable_xcto'] : 0;
+			?>
+			<input type="checkbox" id="enable_xcto" name="<?php echo esc_attr( $this->option_name ); ?>[enable_xcto]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_xcto">Send <code>X-Content-Type-Options: nosniff</code></label>
+			<p class="description">Stops the browser from MIME-sniffing a response away from the Content-Type the server declared — closes off a class of attack where a file uploaded as, say, an image gets sniffed and executed as HTML/JS instead. Safe to enable on virtually any site.</p>
+			<?php
+		}
+
+		/**
+		 * Render enable Referrer-Policy checkbox
+		 */
+		public function enable_referrer_policy_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_referrer_policy'] ) ? $options['enable_referrer_policy'] : 0;
+			?>
+			<input type="checkbox" id="enable_referrer_policy" name="<?php echo esc_attr( $this->option_name ); ?>[enable_referrer_policy]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_referrer_policy">Send <code>Referrer-Policy: strict-origin-when-cross-origin</code></label>
+			<p class="description">WordPress core already prints this same policy as a <code>&lt;meta&gt;</code> tag on the front end, but header-only scanners (including securityheaders.com) don't read that tag — this sends the identical policy as an HTTP header too. Full referrer on same-origin and HTTPS→HTTPS navigation, origin only cross-origin, nothing at all on a downgrade to HTTP.</p>
+			<?php
+		}
+
+		/**
+		 * Render enable Permissions-Policy checkbox
+		 */
+		public function enable_permissions_policy_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['enable_permissions_policy'] ) ? $options['enable_permissions_policy'] : 0;
+			?>
+			<input type="checkbox" id="enable_permissions_policy" name="<?php echo esc_attr( $this->option_name ); ?>[enable_permissions_policy]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="enable_permissions_policy">Send <code>Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()</code></label>
+			<p class="description">Disables browser APIs this site's own pages have no legitimate use for — camera, microphone, geolocation, and FLoC's <code>interest-cohort</code> — for this origin and anything embedded in it. Skip this if the site (or something it embeds, e.g. a video-call widget, store locator, or ad/analytics script) genuinely needs one of these; enabling it blocks that feature outright rather than just warning about it.</p>
 			<?php
 		}
 
@@ -464,17 +538,37 @@ JS;
 			?>
 			<div class="wrap">
 				<h1>CB Blog Options</h1>
+				<h2 class="nav-tab-wrapper">
+					<a href="#cb-tab-blog" class="nav-tab nav-tab-active" data-tab="blog">Blog Options</a>
+					<a href="#cb-tab-headers" class="nav-tab" data-tab="headers">Security Headers</a>
+				</h2>
 				<form action="options.php" method="post">
-					<?php
-					settings_fields( 'cb_blog_options' );
-					do_settings_sections( 'cb_blog_options' );
-					submit_button();
-					?>
+					<?php settings_fields( 'cb_blog_options' ); ?>
+					<div id="cb-tab-blog" class="cb-tab-panel">
+						<?php do_settings_sections( 'cb_blog_options' ); ?>
+					</div>
+					<div id="cb-tab-headers" class="cb-tab-panel" style="display: none;">
+						<?php do_settings_sections( 'cb_blog_options_headers' ); ?>
+					</div>
+					<?php submit_button(); ?>
 				</form>
 			</div>
-			
+
 			<script>
 			jQuery(document).ready(function($) {
+				// Tab switching — both panels stay in the DOM (and get submitted)
+				// regardless of which one is visible, so switching tabs never loses
+				// the other tab's field values.
+				$('.nav-tab-wrapper .nav-tab').on('click', function(e) {
+					e.preventDefault();
+
+					$('.nav-tab-wrapper .nav-tab').removeClass('nav-tab-active');
+					$(this).addClass('nav-tab-active');
+
+					$('.cb-tab-panel').hide();
+					$('#cb-tab-' + $(this).data('tab')).show();
+				});
+
 				// Handle disable blog checkbox logic
 				$('#disable_blog').change(function() {
 					if ($(this).is(':checked')) {
@@ -553,7 +647,10 @@ JS;
 				! empty( $options['enable_hsts'] ) ||
 				! empty( $options['enable_coop'] ) ||
 				! empty( $options['enable_xfo'] ) ||
-				! empty( $options['enable_trusted_types'] )
+				! empty( $options['enable_trusted_types'] ) ||
+				! empty( $options['enable_xcto'] ) ||
+				! empty( $options['enable_referrer_policy'] ) ||
+				! empty( $options['enable_permissions_policy'] )
 			) {
 				add_action( 'send_headers', array( $this, 'send_security_headers' ) );
 			}
@@ -600,6 +697,26 @@ JS;
 			// Classic clickjacking mitigation — still allows the site to frame itself.
 			if ( ! empty( $options['enable_xfo'] ) ) {
 				header( 'X-Frame-Options: SAMEORIGIN' );
+			}
+
+			// Stops MIME-sniffing away from the declared Content-Type; safe on
+			// virtually any site, no compatibility concerns.
+			if ( ! empty( $options['enable_xcto'] ) ) {
+				header( 'X-Content-Type-Options: nosniff' );
+			}
+
+			// Same policy WordPress core already prints as a <meta> tag — sent as a
+			// header too because header-only scanners (securityheaders.com included)
+			// don't read the meta tag.
+			if ( ! empty( $options['enable_referrer_policy'] ) ) {
+				header( 'Referrer-Policy: strict-origin-when-cross-origin' );
+			}
+
+			// Blocks camera/microphone/geolocation/FLoC for this origin and anything
+			// it embeds — see the settings field description for what legitimately
+			// needs opting back out of this.
+			if ( ! empty( $options['enable_permissions_policy'] ) ) {
+				header( 'Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()' );
 			}
 
 			// Front-end only — see print_trusted_types_default_policy() for why
@@ -1081,6 +1198,35 @@ add_filter(
 	}
 );
 
+// Add a direct settings link to the plugin meta row on the Installed Plugins page.
+add_filter(
+	'plugin_row_meta',
+	function ( $plugin_meta, $plugin_file ) {
+		if ( 'cbp-blog-options/cbp-blog-options.php' !== $plugin_file ) {
+			return $plugin_meta;
+		}
+
+		$plugin_meta[] = '<a href="' . admin_url( 'tools.php?page=cbp-blog-options' ) . '">Open Blog Options</a>';
+
+		return $plugin_meta;
+	},
+	10,
+	2
+);
+
+
+/**
+ * Whether ACF (or ACF PRO) is active on this site.
+ *
+ * Every ACF-specific block-editor workaround below is gated on this, so the
+ * plugin is a complete no-op for that feature set on sites that don't run
+ * ACF — nothing to disable, nothing left registered to reason about.
+ *
+ * @return bool
+ */
+function cbp_is_acf_active() {
+	return function_exists( 'acf_register_block_type' );
+}
 
 /**
  * Whether ACF blocks should be pinned to edit mode, rendering their fields in
@@ -1134,78 +1280,82 @@ function cbp_editor_canvas_is_iframed() {
 }
 
 
-// Prevent TinyMCE focus-steal / scroll-jump in ACF Gutenberg repeaters.
-// When ACF adds a repeater row (or flexible content layout) containing a
-// WYSIWYG field, TinyMCE initialises the editor and may steal focus from
-// the editor the user was typing in, causing the page to scroll to it.
-// This JS subscriber:
-//   1. Forces `delay: true` on all WYSIWYG fields via the ACF filter API
-//      so editors only initialise when clicked rather than on row add.
-//   2. Captures scroll position before ACF DOM mutations and restores it
-//      if the page jumps after the new editor is mounted.
-add_action(
-	'enqueue_block_editor_assets',
-	function () {
-		wp_add_inline_script(
-			'wp-block-editor',
-			"( function () {\n\tvar savedScrollY = 0;\n\tvar guardActive = false;\n\n\tif ( typeof acf !== 'undefined' && acf.add_filter ) {\n\t\tacf.add_filter( 'wysiwyg_field_args', function ( args ) {\n\t\t\tif ( args.delay === 0 || args.delay === false || args.delay === undefined ) {\n\t\t\t\targs.delay = true;\n\t\t\t}\n\t\t\treturn args;\n\t\t} );\n\t}\n\n\tif ( typeof acf !== 'undefined' && acf.addAction ) {\n\t\tacf.addAction( 'append', function () {\n\t\t\tsavedScrollY = window.scrollY;\n\t\t\tguardActive = true;\n\t\t}, 1 );\n\n\t\tacf.addAction( 'append', function () {\n\t\t\twindow.setTimeout( function () {\n\t\t\t\tif ( guardActive && savedScrollY > 0 && Math.abs( window.scrollY - savedScrollY ) > 10 ) {\n\t\t\t\t\twindow.scrollTo( window.scrollX, savedScrollY );\n\t\t\t\t}\n\t\t\t\tguardActive = false;\n\t\t\t}, 100 );\n\t\t}, 999 );\n\t}\n} )();",
-			'after'
-		);
-	}
-);
+// Everything below is an ACF-specific block-editor workaround — no-op on
+// sites that don't have ACF active, rather than registering hooks that would
+// just sit there checking wp_style_is( 'acf-input', ... ) forever and never
+// firing.
+if ( cbp_is_acf_active() ) {
 
-
-// WP 7.0 moved meta boxes to their own panel, so they no longer force the block
-// editor canvas out of an iframe. ACF only injects its small inline-editing
-// stylesheet into that iframe, so ACF blocks rendered in edit mode — which is
-// all of them, per the block above — get no field styling at all. Styles
-// enqueued on 'enqueue_block_assets' in admin do reach the iframe.
-add_action(
-	'enqueue_block_assets',
-	function () {
-		if ( ! is_admin() || ! wp_style_is( 'acf-input', 'registered' ) || ! cbp_acf_blocks_force_edit_mode() ) {
-			return;
+	// Prevent TinyMCE focus-steal / scroll-jump in ACF Gutenberg repeaters.
+	// When ACF adds a repeater row (or flexible content layout) containing a
+	// WYSIWYG field, TinyMCE initialises the editor and may steal focus from
+	// the editor the user was typing in, causing the page to scroll to it.
+	// This JS subscriber:
+	//   1. Forces `delay: true` on all WYSIWYG fields via the ACF filter API
+	//      so editors only initialise when clicked rather than on row add.
+	//   2. Captures scroll position before ACF DOM mutations and restores it
+	//      if the page jumps after the new editor is mounted.
+	add_action(
+		'enqueue_block_editor_assets',
+		function () {
+			wp_add_inline_script(
+				'wp-block-editor',
+				"( function () {\n\tvar savedScrollY = 0;\n\tvar guardActive = false;\n\n\tif ( typeof acf !== 'undefined' && acf.add_filter ) {\n\t\tacf.add_filter( 'wysiwyg_field_args', function ( args ) {\n\t\t\tif ( args.delay === 0 || args.delay === false || args.delay === undefined ) {\n\t\t\t\targs.delay = true;\n\t\t\t}\n\t\t\treturn args;\n\t\t} );\n\t}\n\n\tif ( typeof acf !== 'undefined' && acf.addAction ) {\n\t\tacf.addAction( 'append', function () {\n\t\t\tsavedScrollY = window.scrollY;\n\t\t\tguardActive = true;\n\t\t}, 1 );\n\n\t\tacf.addAction( 'append', function () {\n\t\t\twindow.setTimeout( function () {\n\t\t\t\tif ( guardActive && savedScrollY > 0 && Math.abs( window.scrollY - savedScrollY ) > 10 ) {\n\t\t\t\t\twindow.scrollTo( window.scrollX, savedScrollY );\n\t\t\t\t}\n\t\t\t\tguardActive = false;\n\t\t\t}, 100 );\n\t\t}, 999 );\n\t}\n} )();",
+				'after'
+			);
 		}
+	);
 
-		// Only needed when the canvas is an iframe; inline, it already has these.
-		if ( ! cbp_editor_canvas_is_iframed() ) {
-			return;
+	// WP 7.0 moved meta boxes to their own panel, so they no longer force the block
+	// editor canvas out of an iframe. ACF only injects its small inline-editing
+	// stylesheet into that iframe, so ACF blocks rendered in edit mode — which is
+	// all of them, per the block above — get no field styling at all. Styles
+	// enqueued on 'enqueue_block_assets' in admin do reach the iframe.
+	add_action(
+		'enqueue_block_assets',
+		function () {
+			if ( ! is_admin() || ! wp_style_is( 'acf-input', 'registered' ) || ! cbp_acf_blocks_force_edit_mode() ) {
+				return;
+			}
+
+			// Only needed when the canvas is an iframe; inline, it already has these.
+			if ( ! cbp_editor_canvas_is_iframed() ) {
+				return;
+			}
+
+			wp_enqueue_style( 'acf-input' );
+
+			if ( wp_style_is( 'acf-pro-input', 'registered' ) ) {
+				wp_enqueue_style( 'acf-pro-input' );
+			}
+
+			// Classic-editor chrome: without this the Visual/Text switcher on
+			// wysiwyg fields renders as unstyled browser buttons. The block
+			// editor's own editor.min.css is a different file and doesn't cover it.
+			wp_enqueue_style( 'editor-buttons' );
+
+			// ACF's repeater "Add row", gallery "Add to gallery" etc. are core admin
+			// buttons (.button / .button-primary). Those styles live in wp-includes,
+			// with the per-user colour scheme supplying the fills. Both are scoped
+			// under .wp-core-ui, which the iframe body gets from the script below.
+			wp_enqueue_style( 'buttons' );
+			wp_enqueue_style( 'colors' );
 		}
+	);
 
-		wp_enqueue_style( 'acf-input' );
+	// Core admin button styles are all scoped under `.wp-core-ui`, a class the admin
+	// <body> carries but the block editor's canvas iframe body does not — so without
+	// this every ACF button in a block renders as a bare browser button. Gutenberg
+	// rewrites that className on re-render, so re-assert the class rather than
+	// setting it once, and watch for the iframe being remounted.
+	add_action(
+		'enqueue_block_editor_assets',
+		function () {
+			if ( ! cbp_acf_blocks_force_edit_mode() || ! cbp_editor_canvas_is_iframed() ) {
+				return;
+			}
 
-		if ( wp_style_is( 'acf-pro-input', 'registered' ) ) {
-			wp_enqueue_style( 'acf-pro-input' );
-		}
-
-		// Classic-editor chrome: without this the Visual/Text switcher on
-		// wysiwyg fields renders as unstyled browser buttons. The block
-		// editor's own editor.min.css is a different file and doesn't cover it.
-		wp_enqueue_style( 'editor-buttons' );
-
-		// ACF's repeater "Add row", gallery "Add to gallery" etc. are core admin
-		// buttons (.button / .button-primary). Those styles live in wp-includes,
-		// with the per-user colour scheme supplying the fills. Both are scoped
-		// under .wp-core-ui, which the iframe body gets from the script below.
-		wp_enqueue_style( 'buttons' );
-		wp_enqueue_style( 'colors' );
-	}
-);
-
-
-// Core admin button styles are all scoped under `.wp-core-ui`, a class the admin
-// <body> carries but the block editor's canvas iframe body does not — so without
-// this every ACF button in a block renders as a bare browser button. Gutenberg
-// rewrites that className on re-render, so re-assert the class rather than
-// setting it once, and watch for the iframe being remounted.
-add_action(
-	'enqueue_block_editor_assets',
-	function () {
-		if ( ! cbp_acf_blocks_force_edit_mode() || ! cbp_editor_canvas_is_iframed() ) {
-			return;
-		}
-
-		$script = <<<'JS'
+			$script = <<<'JS'
 ( function () {
 	function tag( body ) {
 		if ( body && ! body.classList.contains( 'wp-core-ui' ) ) {
@@ -1244,42 +1394,41 @@ add_action(
 }() );
 JS;
 
-		wp_add_inline_script( 'wp-block-editor', $script, 'after' );
-	}
-);
-
-
-// ACF renders the selected block's fields into the inspector sidebar as well as
-// the canvas, so forcing edit mode above leaves the same form mounted twice.
-// The canvas copy is the one we want, so hide the inspector duplicate — but only
-// while the mode watcher is guaranteeing a canvas copy exists to hide it in
-// favour of, otherwise the fields would be unreachable.
-add_action(
-	'admin_head',
-	function () {
-		if ( ! wp_style_is( 'acf-input', 'registered' ) || ! cbp_acf_blocks_force_edit_mode() ) {
-			return;
+			wp_add_inline_script( 'wp-block-editor', $script, 'after' );
 		}
+	);
 
-		echo '<style>.block-editor-block-inspector .acf-block-component.acf-block-panel{display:none;}</style>';
-	}
-);
+	// ACF renders the selected block's fields into the inspector sidebar as well as
+	// the canvas, so forcing edit mode above leaves the same form mounted twice.
+	// The canvas copy is the one we want, so hide the inspector duplicate — but only
+	// while the mode watcher is guaranteeing a canvas copy exists to hide it in
+	// favour of, otherwise the fields would be unreachable.
+	add_action(
+		'admin_head',
+		function () {
+			if ( ! wp_style_is( 'acf-input', 'registered' ) || ! cbp_acf_blocks_force_edit_mode() ) {
+				return;
+			}
 
+			echo '<style>.block-editor-block-inspector .acf-block-component.acf-block-panel{display:none;}</style>';
+		}
+	);
 
-// WP 7.1's QTags constructor returns early — without setting `settings` — when
-// it can't find the editor textarea by id. `new QTags()` still hands back a
-// truthy object, so ACF's own `if ( ! instance ) return` guard misses it and
-// buildQuicktags() throws reading `settings.buttons`. That single throw aborts
-// ACF's whole field-init pass, leaving every block in the editor unstyled or
-// showing "This block has encountered an error and cannot be previewed."
-add_action(
-	'acf/input/admin_enqueue_scripts',
-	function () {
-		wp_add_inline_script(
-			'acf-input',
-			"( function () {\n\tif ( typeof acf === 'undefined' || ! acf.tinymce || typeof acf.tinymce.buildQuicktags !== 'function' ) {\n\t\treturn;\n\t}\n\n\tvar buildQuicktags = acf.tinymce.buildQuicktags;\n\n\tacf.tinymce.buildQuicktags = function ( instance ) {\n\t\tif ( ! instance || ! instance.settings ) {\n\t\t\treturn false;\n\t\t}\n\n\t\treturn buildQuicktags.apply( this, arguments );\n\t};\n}() );"
-		);
-	}
-);
+	// WP 7.1's QTags constructor returns early — without setting `settings` — when
+	// it can't find the editor textarea by id. `new QTags()` still hands back a
+	// truthy object, so ACF's own `if ( ! instance ) return` guard misses it and
+	// buildQuicktags() throws reading `settings.buttons`. That single throw aborts
+	// ACF's whole field-init pass, leaving every block in the editor unstyled or
+	// showing "This block has encountered an error and cannot be previewed."
+	add_action(
+		'acf/input/admin_enqueue_scripts',
+		function () {
+			wp_add_inline_script(
+				'acf-input',
+				"( function () {\n\tif ( typeof acf === 'undefined' || ! acf.tinymce || typeof acf.tinymce.buildQuicktags !== 'function' ) {\n\t\treturn;\n\t}\n\n\tvar buildQuicktags = acf.tinymce.buildQuicktags;\n\n\tacf.tinymce.buildQuicktags = function ( instance ) {\n\t\tif ( ! instance || ! instance.settings ) {\n\t\t\treturn false;\n\t\t}\n\n\t\treturn buildQuicktags.apply( this, arguments );\n\t};\n}() );"
+			);
+		}
+	);
+} // End if ( cbp_is_acf_active() ).
 
 ?>
