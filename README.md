@@ -2,7 +2,7 @@
 
 A WordPress plugin that provides granular control over blog functionality, allowing administrators to disable blog features, comments, and gravatars through a simple admin interface.
 
-The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, adds a branded Chillibyte dashboard widget, and offers a set of opt-in security response headers aimed at Lighthouse/securityheaders.com-style audits.
+The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, adds a branded Chillibyte dashboard widget (which can be hidden per site), and offers a set of opt-in security response headers aimed at Lighthouse/securityheaders.com-style audits.
 
 ## Features
 
@@ -81,7 +81,7 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 
 ## Technical Details
 
-- **Version**: 1.7.0
+- **Version**: 1.7.1
 - **Requires**: WordPress 4.0+
 - **PHP**: 5.6+
 - **License**: GPL v2 or later
@@ -139,6 +139,9 @@ location /wp-content/uploads/ {
 This plugin is provided as-is. For customizations or support, please contact the plugin author.
 
 ## Changelog
+
+### 1.7.1
+- Added a "Hide Chillibyte Dashboard Widget" option (unchecked by default, so the widget keeps showing unless explicitly hidden)
 
 ### 1.7.0
 - Added three more opt-in Security Headers, and split the settings page into "Blog Options" / "Security Headers" tabs so the growing header list doesn't crowd out the blog toggles:
