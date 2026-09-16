@@ -2,7 +2,7 @@
 
 A WordPress plugin that provides granular control over blog functionality, allowing administrators to disable blog features, comments, and gravatars through a simple admin interface.
 
-The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, and adds a branded Chillibyte dashboard widget.
+The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, adds a branded Chillibyte dashboard widget, and offers a set of opt-in security response headers aimed at Lighthouse/securityheaders.com-style audits.
 
 ## Features
 
@@ -23,6 +23,16 @@ The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the
 - **Disable Gravatars**: Disables avatar/gravatar functionality:
   - Turns off gravatar display
   - Removes avatar options from user profiles
+
+- **Security Headers**: A separate "Security Headers" tab on the settings page, each header independently opt-in and off by default:
+  - **HSTS** — `Strict-Transport-Security`, only sent on an actual HTTPS response, with an optional `preload` sub-toggle
+  - **Cross-Origin-Opener-Policy** — `same-origin-allow-popups`
+  - **X-Frame-Options** — `SAMEORIGIN` (clickjacking mitigation)
+  - **X-Content-Type-Options** — `nosniff`
+  - **Referrer-Policy** — `strict-origin-when-cross-origin`, sent as a header in addition to the `<meta>` tag WordPress core already prints, for scanners that only read headers
+  - **Permissions-Policy** — disables camera/microphone/geolocation/FLoC by default
+  - **Trusted Types** — `Content-Security-Policy: require-trusted-types-for 'script'`, front-end only, experimental — see the in-admin field description before enabling
+  - Only affects requests WordPress itself handles — see [Security Headers and Static Files](#security-headers-and-static-files) below for what this doesn't cover
 
 ## Installation
 
@@ -99,6 +109,30 @@ The plugin uses various WordPress hooks and filters to achieve its functionality
 - `allow_major_auto_core_updates` - For blocking major core auto-updates
 - `enqueue_block_assets` / `enqueue_block_editor_assets` - For ACF/Gutenberg iframe fixes
 - `acf/input/admin_enqueue_scripts` - For the QTags crash fix
+
+## Security Headers and Static Files
+
+The Security Headers settings only affect requests that WordPress itself handles — pages, posts, admin screens, anything that loads through `index.php`. Direct static file requests (`/wp-content/uploads/*`, and any other file the web server serves straight off disk) never run WordPress or PHP, so this plugin's `send_headers` hook never fires for them and **no WordPress plugin can add headers to those responses**. That has to be configured at the web server (or CDN) instead.
+
+For most of the headers this doesn't matter in practice — HSTS is cached per-origin by the browser after a single page load, and the framing/referrer/permissions headers are only meaningful on HTML documents. The one that's actually worth adding to static files is **`X-Content-Type-Options: nosniff`**, since it stops the browser from MIME-sniffing a response into something it wasn't declared as — exactly the risk with user-uploaded files.
+
+**Apache** — add to a `.htaccess` in `wp-content/uploads/`, or to the vhost config:
+
+```apache
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+```
+
+**Nginx** — add to the `location` block that serves uploads (or the server block, to cover all static assets):
+
+```nginx
+location /wp-content/uploads/ {
+    add_header X-Content-Type-Options "nosniff" always;
+}
+```
+
+**Behind a CDN/proxy** (Cloudflare, etc.) — set the header as a response header rule at the edge instead; it will apply before the request ever reaches the origin.
 
 ## Support
 
