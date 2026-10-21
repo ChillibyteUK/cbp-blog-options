@@ -59,7 +59,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				'disable_comments'              => 1,
 				'disable_gravatars'             => 1,
 				'disable_tags'                  => 0,
-				'disable_emojis'                => 0,
+				'disable_emojis'                => 1,
 				'suppress_object_cache_warning' => 0,
 				'suppress_core_update_nag'      => 0,
 				'hide_dashboard_widget'         => 0,
