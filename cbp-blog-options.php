@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.7.1
+ * Version: 1.8.0
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.7.1' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.8.0' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
     define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -74,6 +74,7 @@ if ( ! class_exists( 'CBBlogOptions' ) ) {
 				'enable_xcto'                   => 0,
 				'enable_referrer_policy'        => 0,
 				'enable_permissions_policy'     => 0,
+				'disable_rest_users'            => 0,
 			);
 			add_option( 'cb_blog_options', $default_options );
 		}
@@ -342,6 +343,14 @@ JS;
 				'cb_blog_options_headers',
 				'cb_blog_options_security_section'
 			);
+
+			add_settings_field(
+				'disable_rest_users',
+				'REST API User Listing',
+				array( $this, 'disable_rest_users_render' ),
+				'cb_blog_options_headers',
+				'cb_blog_options_security_section'
+			);
 		}
 
 		/**
@@ -446,6 +455,19 @@ JS;
 			<p class="description">
 				<strong>Experimental — read before enabling.</strong> This directive blocks every plain <code>innerHTML</code>/<code>eval</code>-style DOM write on the page unless something registers a Trusted Types policy to allow it first — nothing in a typical stack (TinyMCE, GTM, Swiper, GSAP, jQuery plugins) is Trusted-Types-aware, so enabling this with no policy registered would break the front-end outright. To avoid that, this option also prints an early inline script registering a permissive pass-through <code>default</code> policy, so existing scripts keep working unmodified. That satisfies Lighthouse's Trusted Types audit and stops any script from registering its own competing policy, but a pass-through policy doesn't sanitise anything — it's a first step (and a real one: it closes off a class of policy-injection attacks), not a substitute for auditing this site's own JS for genuine DOM XSS sinks. Deliberately scoped to the front-end only; wp-admin is excluded because ACF, TinyMCE and the media modals rely on exactly the sinks this would block. Test thoroughly (browser console, third-party embeds, forms, GTM tags) before relying on it in production.
 			</p>
+			<?php
+		}
+
+		/**
+		 * Render disable REST users checkbox
+		 */
+		public function disable_rest_users_render() {
+			$options = get_option( $this->option_name );
+			$checked = isset( $options['disable_rest_users'] ) ? $options['disable_rest_users'] : 0;
+			?>
+			<input type="checkbox" id="disable_rest_users" name="<?php echo esc_attr( $this->option_name ); ?>[disable_rest_users]" value="1" <?php checked( 1, $checked ); ?>>
+			<label for="disable_rest_users">Block <code>/wp-json/wp/v2/users</code> and <code>?rest_route=/wp/v2/users</code> for logged-out visitors</label>
+			<p class="description">Stops anonymous user/username enumeration via the REST API. Logged-in requests (including authenticated REST clients) are unaffected — only unauthenticated access to the users collection and single-user endpoints is blocked.</p>
 			<?php
 		}
 
@@ -684,6 +706,38 @@ JS;
 			if ( ! empty( $options['enable_trusted_types'] ) && ! is_admin() ) {
 				add_action( 'wp_head', array( $this, 'print_trusted_types_default_policy' ), 0 );
 			}
+
+			// Block anonymous access to the REST users endpoint (user enumeration).
+			if ( ! empty( $options['disable_rest_users'] ) ) {
+				add_filter( 'rest_pre_dispatch', array( $this, 'block_anonymous_rest_users' ), 10, 3 );
+			}
+		}
+
+		/**
+		 * Block unauthenticated requests to the REST API users endpoint
+		 * (/wp/v2/users and /wp/v2/users/<id>), including the ?rest_route=
+		 * query-string form, which resolves to the same route internally.
+		 * Logged-in requests are left untouched.
+		 *
+		 * @param mixed           $result  Response to replace the requested version with.
+		 * @param WP_REST_Server  $server  Server instance.
+		 * @param WP_REST_Request $request Request used to generate the response.
+		 * @return mixed|WP_Error
+		 */
+		public function block_anonymous_rest_users( $result, $server, $request ) {
+			if ( is_user_logged_in() ) {
+				return $result;
+			}
+
+			if ( preg_match( '#^/wp/v2/users(/|$)#', $request->get_route() ) ) {
+				return new WP_Error(
+					'rest_user_cannot_view',
+					__( 'Sorry, you are not allowed to list users.', 'cb-blog-options' ),
+					array( 'status' => rest_authorization_required_code() )
+				);
+			}
+
+			return $result;
 		}
 
 		/**

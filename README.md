@@ -32,6 +32,7 @@ The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the
   - **Referrer-Policy** — `strict-origin-when-cross-origin`, sent as a header in addition to the `<meta>` tag WordPress core already prints, for scanners that only read headers
   - **Permissions-Policy** — disables camera/microphone/geolocation/FLoC by default
   - **Trusted Types** — `Content-Security-Policy: require-trusted-types-for 'script'`, front-end only, experimental — see the in-admin field description before enabling
+  - **REST API User Listing** — blocks unauthenticated requests to `/wp-json/wp/v2/users` (and the `?rest_route=/wp/v2/users` form) to stop anonymous username enumeration; logged-in and authenticated REST requests are unaffected
   - Only affects requests WordPress itself handles — see [Security Headers and Static Files](#security-headers-and-static-files) below for what this doesn't cover
 
 ## Installation
@@ -139,6 +140,9 @@ location /wp-content/uploads/ {
 This plugin is provided as-is. For customizations or support, please contact the plugin author.
 
 ## Changelog
+
+### 1.8.0
+- Added a "REST API User Listing" Security Headers option: blocks unauthenticated requests to `/wp-json/wp/v2/users` (and the `?rest_route=/wp/v2/users` form), including single-user lookups, to stop anonymous username enumeration. Off by default; logged-in and authenticated REST requests are unaffected.
 
 ### 1.7.1
 - Added a "Hide Chillibyte Dashboard Widget" option (unchecked by default, so the widget keeps showing unless explicitly hidden)
