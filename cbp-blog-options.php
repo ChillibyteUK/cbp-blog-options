@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.8.0
+ * Version: 1.8.1
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -12,18 +12,18 @@
 
 // Prevent direct access.
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.8.0' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.8.1' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
-    define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+	define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_URL' ) ) {
-    define( 'CB_BLOG_OPTIONS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+	define( 'CB_BLOG_OPTIONS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 }
 
 if ( ! class_exists( 'CBBlogOptions' ) ) {
@@ -184,7 +184,6 @@ JS;
 
 			wp_add_inline_script( 'wp-blocks', $script );
 		}
-
 
 		/**
 		 * Add admin menu under Tools
@@ -354,6 +353,13 @@ JS;
 		}
 
 		/**
+		 * Settings section callback
+		 */
+		public function settings_section_callback() {
+			echo '<p>Configure blog functionality options below:</p>';
+		}
+
+		/**
 		 * Security Headers section callback
 		 */
 		public function security_section_callback() {
@@ -469,13 +475,6 @@ JS;
 			<label for="disable_rest_users">Block <code>/wp-json/wp/v2/users</code> and <code>?rest_route=/wp/v2/users</code> for logged-out visitors</label>
 			<p class="description">Stops anonymous user/username enumeration via the REST API. Logged-in requests (including authenticated REST clients) are unaffected — only unauthenticated access to the users collection and single-user endpoints is blocked.</p>
 			<?php
-		}
-
-		/**
-		 * Settings section callback
-		 */
-		public function settings_section_callback() {
-			echo '<p>Configure blog functionality options below:</p>';
 		}
 
 		/**
@@ -620,7 +619,7 @@ JS;
 						$('#disable_tags').prop('checked', true);
 					}
 				});
-				
+
 				// Prevent unchecking comments/gravatars/tags if blog is disabled
 				$('#disable_comments, #disable_gravatars, #disable_tags').change(function() {
 					if (!$(this).is(':checked') && $('#disable_blog').is(':checked')) {
@@ -654,7 +653,7 @@ JS;
 
 			// Hide the core update banner if enabled. This drops the notice only —
 			// update checks, Dashboard > Updates and minor/security auto-updates all
-			// carry on, so a pinned site still receives 7.0.x security releases.
+			// carry on, so a pinned site still receives security releases.
 			if ( isset( $options['suppress_core_update_nag'] ) && $options['suppress_core_update_nag'] ) {
 				add_action(
 					'admin_init',
@@ -1221,17 +1220,17 @@ JS;
 
 // Initialize the plugin only if the class exists and hasn't been initialized yet.
 if ( class_exists( 'CBBlogOptions' ) && ! isset( $GLOBALS['cb_blog_options_instance'] ) ) {
-    $GLOBALS['cb_blog_options_instance'] = new CBBlogOptions();
+	$GLOBALS['cb_blog_options_instance'] = new CBBlogOptions();
 }
 
 // Activation hook.
 if ( ! function_exists( 'cb_blog_options_activation_check' ) ) {
-    register_activation_hook( __FILE__, array( 'CBBlogOptions', 'activate' ) );
+	register_activation_hook( __FILE__, array( 'CBBlogOptions', 'activate' ) );
 }
 
 // Deactivation hook.
 if ( ! function_exists( 'cb_blog_options_deactivation_check' ) ) {
-    register_deactivation_hook( __FILE__, array( 'CBBlogOptions', 'deactivate' ) );
+	register_deactivation_hook( __FILE__, array( 'CBBlogOptions', 'deactivate' ) );
 }
 
 /**
@@ -1305,21 +1304,6 @@ function cbp_is_acf_active() {
 	return function_exists( 'acf_register_block_type' );
 }
 
-/**
- * Whether ACF blocks should be pinned to edit mode, rendering their fields in
- * the canvas rather than the inspector sidebar.
- *
- * Everything that depends on in-canvas fields — the mode watcher below, the
- * iframe stylesheets, and hiding ACF's duplicate inspector copy — is gated on
- * this, so a site can opt out of the whole arrangement in one place.
- *
- * @return bool
- */
-function cbp_acf_blocks_force_edit_mode() {
-	return (bool) apply_filters( 'cbp_acf_blocks_force_edit_mode', true );
-}
-
-
 // Never let a site take a major core version on its own.
 //
 // WP 7.1 hardcodes the editor canvas into an iframe, where ACF's wysiwyg
@@ -1339,6 +1323,20 @@ add_filter(
 );
 
 /**
+ * Whether ACF blocks should be pinned to edit mode, rendering their fields in
+ * the canvas rather than the inspector sidebar.
+ *
+ * Everything that depends on in-canvas fields — the mode watcher above, the
+ * iframe stylesheets, and hiding ACF's duplicate inspector copy — is gated on
+ * this, so a site can opt out of the whole arrangement in one place.
+ *
+ * @return bool
+ */
+function cbp_acf_blocks_force_edit_mode() {
+	return (bool) apply_filters( 'cbp_acf_blocks_force_edit_mode', true );
+}
+
+/**
  * Whether the block editor canvas is rendered inside an iframe.
  *
  * WP 7.1 hardcodes `shouldIframe: true` on the block canvas; before that, a
@@ -1355,7 +1353,6 @@ function cbp_editor_canvas_is_iframed() {
 
 	return (bool) apply_filters( 'cbp_editor_canvas_is_iframed', $iframed );
 }
-
 
 // Everything below is an ACF-specific block-editor workaround — no-op on
 // sites that don't have ACF active, rather than registering hooks that would
@@ -1507,5 +1504,4 @@ JS;
 		}
 	);
 } // End if ( cbp_is_acf_active() ).
-
 ?>

@@ -24,20 +24,31 @@ The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the
   - Turns off gravatar display
   - Removes avatar options from user profiles
 
-- **Security Headers**: A separate "Security Headers" tab on the settings page, each header independently opt-in and off by default:
-  - **HSTS** — `Strict-Transport-Security`, only sent on an actual HTTPS response, with an optional `preload` sub-toggle
-  - **Cross-Origin-Opener-Policy** — `same-origin-allow-popups`
-  - **X-Frame-Options** — `SAMEORIGIN` (clickjacking mitigation)
-  - **X-Content-Type-Options** — `nosniff`
-  - **Referrer-Policy** — `strict-origin-when-cross-origin`, sent as a header in addition to the `<meta>` tag WordPress core already prints, for scanners that only read headers
-  - **Permissions-Policy** — disables camera/microphone/geolocation/FLoC by default
-  - **Trusted Types** — `Content-Security-Policy: require-trusted-types-for 'script'`, front-end only, experimental — see the in-admin field description before enabling
-  - **REST API User Listing** — blocks unauthenticated requests to `/wp-json/wp/v2/users` (and the `?rest_route=/wp/v2/users` form) to stop anonymous username enumeration; logged-in and authenticated REST requests are unaffected
-  - Only affects requests WordPress itself handles — see [Security Headers and Static Files](#security-headers-and-static-files) below for what this doesn't cover
+- **Disable Tags**: Detaches post tags from the default `post` post type and hides the tags admin UI
+
+- **Disable Emojis**: Removes WordPress emoji scripts/styles from the frontend and admin, and drops TinyMCE emoji support
+
+- **Suppress Object Cache Warning**: Hides the Site Health "persistent object cache" warning, useful for small sites where object caching is unnecessary
+
+- **Suppress Core Update Nag**: Hides the "WordPress x.x is available" banner and blocks WordPress from auto-updating to a new **major** version on its own — for sites deliberately pinned to an older release. Dashboard > Updates still works, and minor/security updates are unaffected. The major-update block can be lifted independently of the checkbox with `add_filter( 'cbp_block_major_core_auto_updates', '__return_false' )`.
+
+- **Chillibyte Dashboard Widget**: Adds a branded admin dashboard widget with quick contact details; can be hidden via the "Hide Chillibyte Dashboard Widget" option
+
+- **Security Headers**: A separate "Security Headers" tab on the settings page, each header independently opt-in and off by default (HSTS with optional `preload`, Cross-Origin-Opener-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and experimental Trusted Types, and REST API user-listing blocking). Only affects requests WordPress itself handles — see [Security Headers and Static Files](#security-headers-and-static-files)
+
+- **Force ACF Block Edit Mode**: Keeps all ACF blocks in edit mode in the block editor, including newly inserted blocks. Can be disabled site-wide with `add_filter( 'cbp_acf_blocks_force_edit_mode', '__return_false' )`.
+
+- **WP 7.1 ACF/Gutenberg hardening**: WordPress 7.1 moved the block editor canvas into an iframe, which breaks several things for sites relying on ACF blocks. This plugin works around that automatically:
+  - Re-enqueues ACF/editor/button styles inside the iframe canvas so ACF fields and buttons aren't left unstyled
+  - Tags the iframe body with `wp-core-ui` so core admin button styles apply inside it
+  - Hides ACF's duplicate inspector-sidebar panel when a block is forced into edit mode
+  - Fixes a WP 7.1 QTags/`buildQuicktags` crash that could break ACF's field init and show "This block has encountered an error and cannot be previewed"
+  - Prevents TinyMCE from stealing focus/scrolling the page when a WYSIWYG field is added inside an ACF repeater or flexible content layout
+  - Checking **Suppress Core Update Nag** additionally stops WordPress auto-updating past its current major, so a site doesn't jump to 7.1 unattended and lose ACF's TinyMCE fields
 
 ## Installation
 
-1. Upload the `cb-blog` folder to the `/wp-content/plugins/` directory
+1. Upload the `cbp-blog-options` folder to the `/wp-content/plugins/` directory
 2. Activate the plugin through the 'Plugins' menu in WordPress
 3. Navigate to Tools > CB Blog Options to configure settings
 
@@ -45,20 +56,26 @@ The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the
 
 ### Admin Interface
 
-The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. This page contains three checkboxes:
+The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. This page contains eight checkboxes:
 
-1. **Disable Blog** - When checked, completely disables all blog functionality and automatically enables options 2 and 3
+1. **Disable Blog** - When checked, completely disables all blog functionality and automatically enables options 2, 3, and 4
 2. **Disable Comments** - When checked, disables all comment-related functionality
 3. **Disable Gravatars** - When checked, disables gravatar/avatar display
+4. **Disable Tags** - When checked, removes post tags from the admin UI
+5. **Disable Emojis** - When checked, removes WordPress emoji assets and TinyMCE emoji support
+6. **Suppress Object Cache Warning** - When checked, hides the Site Health "persistent object cache" warning
+7. **Suppress Core Update Nag** - When checked, hides the "WordPress x.x is available" admin banner and blocks major core auto-updates
+8. **Hide Chillibyte Dashboard Widget** - When checked, the Chillibyte dashboard widget is not shown
 
 ### Checkbox Behavior
 
-- When "Disable Blog" is checked, "Disable Comments" and "Disable Gravatars" are automatically checked and cannot be unchecked
-- Individual comment and gravatar options can be controlled independently when blog is not disabled
+- When "Disable Blog" is checked, "Disable Comments", "Disable Gravatars", and "Disable Tags" are automatically checked and cannot be unchecked
+- Individual comment, gravatar, tag, and emoji options can be controlled independently when blog is not disabled
 
 ## What Gets Disabled
 
 ### When Blog is Disabled:
+
 - Posts menu is removed from admin
 - All post-related admin pages are inaccessible
 - Post type support is disabled
@@ -68,6 +85,7 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 - All gravatar functionality (inherited)
 
 ### When Comments are Disabled:
+
 - Comments are closed on all posts
 - Existing comments are hidden
 - Comments menu is removed from admin
@@ -76,13 +94,26 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 - Comments section is removed from admin bar
 
 ### When Gravatars are Disabled:
+
 - Avatar display is turned off
 - Gravatar images are replaced with empty content
 - Avatar options are removed from user profiles
 
+### When Tags are Disabled:
+
+- Post tags are detached from the default `post` post type
+- The tags admin screen is hidden
+- The tags metabox is removed from the post editor
+
+### When Emojis are Disabled:
+
+- Frontend and admin emoji scripts and styles are removed
+- TinyMCE emoji support is removed
+- The emoji SVG CDN URL is disabled
+
 ## Technical Details
 
-- **Version**: 1.7.1
+- **Version**: 1.8.1
 - **Requires**: WordPress 4.0+
 - **PHP**: 5.6+
 - **License**: GPL v2 or later
@@ -90,8 +121,8 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 ## File Structure
 
 ```
-cb-blog/
-├── cb-blog-options.php    # Main plugin file
+cbp-blog-options/
+├── cbp-blog-options.php    # Main plugin file
 ├── assets/images/cb-full.jpg # Dashboard widget image
 └── README.md                # This documentation
 ```
@@ -141,6 +172,17 @@ This plugin is provided as-is. For customizations or support, please contact the
 
 ## Changelog
 
+### 1.8.1
+- Documented the existing "Disable Tags", "Disable Emojis" and "Suppress Object Cache Warning" options, and tidied code layout and comments to match the upstream plugin
+- Added a "Suppress Core Update Nag" option that hides the "WordPress x.x is available" admin banner and blocks WordPress from auto-updating to a new major version on its own (minor/security updates unaffected, major-block independently filterable via `cbp_block_major_core_auto_updates`)
+- Added WP 7.1 ACF/Gutenberg hardening to deal with the block editor canvas moving into an iframe:
+  - Made the ACF edit-mode enforcement filterable via `cbp_acf_blocks_force_edit_mode`
+  - Re-enqueue ACF/editor/button styles inside the iframe canvas and tag its body with `wp-core-ui`
+  - Hide ACF's duplicate inspector-sidebar panel
+  - Fix a WP 7.1 QTags/`buildQuicktags` crash that could break ACF field init
+  - Prevent TinyMCE focus-steal/scroll-jump when adding a WYSIWYG field inside an ACF repeater
+- Replaced the older "force edit mode on insert" JS watcher with the simpler always-on subscriber, now gated by the filter above
+
 ### 1.8.0
 - Added a "REST API User Listing" Security Headers option: blocks unauthenticated requests to `/wp-json/wp/v2/users` (and the `?rest_route=/wp/v2/users` form), including single-user lookups, to stop anonymous username enumeration. Off by default; logged-in and authenticated REST requests are unaffected.
 
@@ -173,6 +215,6 @@ This plugin is provided as-is. For customizations or support, please contact the
 ### 1.0.0
 - Initial release
 - Added blog disable functionality
-- Added comments disable functionality  
+- Added comments disable functionality
 - Added gravatars disable functionality
 - Added admin interface under Tools menu
