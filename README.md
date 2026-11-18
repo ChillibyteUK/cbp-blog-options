@@ -2,7 +2,7 @@
 
 A WordPress plugin that provides granular control over blog functionality, allowing administrators to disable blog features, comments, and gravatars through a simple admin interface.
 
-The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, adds a branded Chillibyte dashboard widget (which can be hidden per site), and offers a set of opt-in security response headers aimed at Lighthouse/securityheaders.com-style audits.
+The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the block editor, including immediately after a new block is inserted, adds a branded Chillibyte dashboard widget (which can be hidden per site), hides WordPress 7 admin screens these sites don't use, and offers a set of opt-in security response headers aimed at Lighthouse/securityheaders.com-style audits.
 
 ## Features
 
@@ -32,9 +32,13 @@ The plugin also forces Advanced Custom Fields blocks to stay in edit mode in the
 
 - **Suppress Core Update Nag**: Hides the "WordPress x.x is available" banner and blocks WordPress from auto-updating to a new **major** version on its own — for sites deliberately pinned to an older release. Dashboard > Updates still works, and minor/security updates are unaffected. The major-update block can be lifted independently of the checkbox with `add_filter( 'cbp_block_major_core_auto_updates', '__return_false' )`.
 
+- **Hides WordPress 7 admin screens (always on)**: removes Appearance > Design (the Site Editor), Appearance > Fonts and Settings > Connectors from the admin menu, sends anyone who opens those screens directly back to the dashboard, and drops the Site Editor shortcut from the admin bar. There is no setting for this; it applies whenever the plugin is active.
+
 - **Chillibyte Dashboard Widget**: Adds a branded admin dashboard widget with quick contact details; can be hidden via the "Hide Chillibyte Dashboard Widget" option
 
-- **Security Headers**: A separate "Security Headers" tab on the settings page, each header independently opt-in and off by default (HSTS with optional `preload`, Cross-Origin-Opener-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and experimental Trusted Types, and REST API user-listing blocking). Only affects requests WordPress itself handles — see [Security Headers and Static Files](#security-headers-and-static-files)
+- **Security Headers**: A separate "Security Headers" tab on the settings page, each header independently opt-in and off by default (HSTS with optional `preload`, Cross-Origin-Opener-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and experimental Trusted Types). Only affects requests WordPress itself handles — see [Security Headers and Static Files](#security-headers-and-static-files)
+
+- **REST API User Listing**: Also on the "Security Headers" tab, off by default. Blocks unauthenticated requests to `/wp-json/wp/v2/users` (and the `?rest_route=/wp/v2/users` form), including single-user lookups, to stop anonymous username enumeration. Logged-in and authenticated REST requests are unaffected.
 
 - **Force ACF Block Edit Mode**: Keeps all ACF blocks in edit mode in the block editor, including newly inserted blocks. Can be disabled site-wide with `add_filter( 'cbp_acf_blocks_force_edit_mode', '__return_false' )`.
 
@@ -66,6 +70,10 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 6. **Suppress Object Cache Warning** - When checked, hides the Site Health "persistent object cache" warning
 7. **Suppress Core Update Nag** - When checked, hides the "WordPress x.x is available" admin banner and blocks major core auto-updates
 8. **Hide Chillibyte Dashboard Widget** - When checked, the Chillibyte dashboard widget is not shown
+
+The separate "Security Headers" tab holds the opt-in header toggles (HSTS and its `preload` sub-toggle, Cross-Origin-Opener-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, Trusted Types) and the REST API User Listing toggle. All are off by default.
+
+On a fresh install the defaults are: Disable Comments, Disable Gravatars and Disable Emojis on; everything else off.
 
 ### Checkbox Behavior
 
@@ -111,9 +119,15 @@ The plugin adds a "CB Blog Options" page under the WordPress admin Tools menu. T
 - TinyMCE emoji support is removed
 - The emoji SVG CDN URL is disabled
 
+### Always Hidden (no setting):
+
+- Appearance > Design (Site Editor), Appearance > Fonts and Settings > Connectors are removed from the admin menu
+- Opening those screens directly redirects to the dashboard
+- The Site Editor shortcut is removed from the admin bar
+
 ## Technical Details
 
-- **Version**: 1.8.1
+- **Version**: 1.8.2
 - **Requires**: WordPress 4.0+
 - **PHP**: 5.6+
 - **License**: GPL v2 or later
@@ -131,11 +145,12 @@ cbp-blog-options/
 
 The plugin uses various WordPress hooks and filters to achieve its functionality:
 
-- `admin_menu` - For adding/removing menu items
+- `admin_menu` - For adding/removing menu items, including the always-hidden screens
 - `admin_init` - For settings registration and redirects
 - `init` - For disabling post type support
 - `wp_dashboard_setup` - For removing dashboard widgets
-- `admin_bar_menu` - For modifying admin bar
+- `admin_bar_menu` - For modifying admin bar, including removing the Site Editor shortcut
+- `rest_pre_dispatch` - For blocking anonymous REST users requests
 - `comments_open` / `pings_open` - For disabling comments
 - `get_avatar` - For disabling gravatars
 - `allow_major_auto_core_updates` - For blocking major core auto-updates
@@ -171,6 +186,10 @@ location /wp-content/uploads/ {
 This plugin is provided as-is. For customizations or support, please contact the plugin author.
 
 ## Changelog
+
+### 1.8.2
+- Always hide Appearance > Design, Appearance > Fonts and Settings > Connectors: removed from the menu, redirected to the dashboard if opened directly, and the Site Editor admin bar shortcut removed. No setting; applies whenever the plugin is active (ported from the Lamcat plugin)
+- README updated to cover the Security Headers tab, REST API User Listing, defaults and the hidden screens
 
 ### 1.8.1
 - Documented the existing "Disable Tags", "Disable Emojis" and "Suppress Object Cache Warning" options, and tidied code layout and comments to match the upstream plugin

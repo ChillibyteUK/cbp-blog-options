@@ -3,7 +3,7 @@
  * Plugin Name: CB Blog Options
  * Plugin URI: https://github.com/ChillibyteUK/cbp-blog-options
  * Description: A WordPress plugin to manage blog functionality including disabling blog, comments, and gravatars.
- * Version: 1.8.1
+ * Version: 1.8.2
  * Author: Chillibyte - DS
  * License: GPL v2 or later
  *
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define plugin constants.
 if ( ! defined( 'CB_BLOG_OPTIONS_VERSION' ) ) {
-	define( 'CB_BLOG_OPTIONS_VERSION', '1.8.1' );
+	define( 'CB_BLOG_OPTIONS_VERSION', '1.8.2' );
 }
 if ( ! defined( 'CB_BLOG_OPTIONS_PLUGIN_DIR' ) ) {
 	define( 'CB_BLOG_OPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -646,6 +646,11 @@ JS;
 			// Always remove unwanted dashboard widgets.
 			add_action( 'wp_dashboard_setup', array( $this, 'remove_unwanted_dashboard_widgets' ) );
 
+			// Always hide the admin screens WordPress 7 added that these sites don't use.
+			add_action( 'admin_menu', array( $this, 'remove_hidden_screens_menu' ), 999 );
+			add_action( 'admin_init', array( $this, 'redirect_hidden_screens' ) );
+			add_action( 'admin_bar_menu', array( $this, 'remove_hidden_screens_admin_bar' ), 999 );
+
 			// Suppress persistent object cache warning in Site Health if enabled.
 			if ( isset( $options['suppress_object_cache_warning'] ) && $options['suppress_object_cache_warning'] ) {
 				add_filter( 'site_status_should_suggest_persistent_object_cache', '__return_false' );
@@ -870,6 +875,64 @@ JS;
 				return array_diff( $plugins, array( 'wpemoji' ) );
 			}
 			return $plugins;
+		}
+
+		/**
+		 * Admin screens that are always switched off: Appearance > Design (the
+		 * Site Editor), Appearance > Fonts and Settings > Connectors.
+		 *
+		 * Each is a real file in wp-admin, so removing the menu entry alone would
+		 * leave the page reachable by its address; the redirect closes that.
+		 *
+		 * @return array[] Parent menu slug and screen file for each.
+		 */
+		private function hidden_screens() {
+			return array(
+				array(
+					'parent' => 'themes.php',
+					'file'   => 'site-editor.php',
+				),
+				array(
+					'parent' => 'themes.php',
+					'file'   => 'font-library.php',
+				),
+				array(
+					'parent' => 'options-general.php',
+					'file'   => 'options-connectors.php',
+				),
+			);
+		}
+
+		/**
+		 * Remove the hidden screens from the admin menu
+		 */
+		public function remove_hidden_screens_menu() {
+			foreach ( $this->hidden_screens() as $screen ) {
+				remove_submenu_page( $screen['parent'], $screen['file'] );
+			}
+		}
+
+		/**
+		 * Redirect to the dashboard when a hidden screen is opened directly
+		 */
+		public function redirect_hidden_screens() {
+			global $pagenow;
+
+			foreach ( $this->hidden_screens() as $screen ) {
+				if ( $screen['file'] === $pagenow ) {
+					wp_safe_redirect( admin_url() );
+					exit;
+				}
+			}
+		}
+
+		/**
+		 * Remove the Site Editor shortcut from the admin bar
+		 *
+		 * @param WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
+		 */
+		public function remove_hidden_screens_admin_bar( $wp_admin_bar ) {
+			$wp_admin_bar->remove_node( 'site-editor' );
 		}
 
 		/**
